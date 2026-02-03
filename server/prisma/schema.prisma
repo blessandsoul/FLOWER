@@ -1,0 +1,355 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Role {
+  USER
+  RESELLER
+  OPERATOR
+  LOGISTICS
+  ACCOUNTANT
+  ADMIN
+}
+
+enum FlowerOrigin {
+  HOLLAND
+  ECUADOR
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  DISCONTINUED
+}
+
+enum BatchStatus {
+  ORDERED
+  IN_TRANSIT
+  RECEIVED
+  CANCELLED
+}
+
+enum OrderStatus {
+  PENDING
+  APPROVED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CARD
+  BANK_TRANSFER
+  CASH
+  CREDITS
+}
+
+enum TransactionType {
+  DEPOSIT
+  SPEND
+  REFUND
+  FEE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  CANCELLED
+}
+
+// ============================================
+// USER
+// ============================================
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  firstName     String    @map("first_name")
+  lastName      String    @map("last_name")
+  role          Role      @default(USER)
+  balance       Decimal   @default(0.00) @db.Decimal(10, 2)
+  emailVerified Boolean   @default(false) @map("email_verified")
+  isReseller    Boolean   @default(false) @map("is_reseller")
+  isVip         Boolean   @default(false) @map("is_vip")
+
+  // Billing details
+  phone       String? @map("phone")
+  address     String? @db.Text @map("address")
+  companyName String? @map("company_name")
+  taxId       String? @map("tax_id")       // ს/ნ (საიდენტიფიკაციო ნომერი) for companies
+  personalId  String? @map("personal_id")  // პ/ნ (პირადი ნომერი) for individuals
+
+  orders              Order[]
+  creditTransactions  CreditTransaction[]
+  invoices            Invoice[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+// ============================================
+// CATEGORY
+// ============================================
+
+model Category {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  slug        String  @unique
+  description String? @db.Text
+
+  products Product[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("categories")
+}
+
+// ============================================
+// PRODUCT
+// ============================================
+
+model Product {
+  id               String        @id @default(uuid())
+  name             String
+  nameFa           String?       @map("name_fa") // Farsi name
+  description      String?       @db.Text
+  categoryId       String?       @map("category_id")
+  category         Category?     @relation(fields: [categoryId], references: [id])
+  origin           FlowerOrigin  @default(HOLLAND)
+  stemLengthCm     Int           @default(50) @map("stem_length_cm")
+  stemsPerBunch    Int           @default(10) @map("stems_per_bunch")
+  colorGroup       String?       @map("color_group")
+  imageUrl         String?       @map("image_url")
+  priceEur         Decimal       @db.Decimal(10, 2) @map("price_eur")
+  priceGel         Decimal       @db.Decimal(10, 2) @map("price_gel")
+  markupPercentage Int           @default(40) @map("markup_percentage")
+  availableQty     Int           @default(0) @map("available_qty")
+  status           ProductStatus @default(ACTIVE)
+  isActive         Boolean       @default(true) @map("is_active")
+
+  orderItems    OrderItem[]
+  batchItems    BatchItem[]
+  invoiceItems  InvoiceItem[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([categoryId])
+  @@index([origin])
+  @@index([status])
+  @@index([isActive])
+  @@map("products")
+}
+
+// ============================================
+// BATCH (Import Batches from Holland/Ecuador)
+// ============================================
+
+model Batch {
+  id                  String       @id @default(uuid())
+  batchNumber         String       @unique @map("batch_number")
+  origin              FlowerOrigin
+  supplier            String?
+  expectedArrivalDate DateTime     @map("expected_arrival_date")
+  actualArrivalDate   DateTime?    @map("actual_arrival_date")
+  status              BatchStatus  @default(ORDERED)
+  totalItems          Int          @default(0) @map("total_items")
+  totalCostEur        Decimal      @default(0) @db.Decimal(10, 2) @map("total_cost_eur")
+  notes               String?      @db.Text
+
+  items BatchItem[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([expectedArrivalDate])
+  @@map("batches")
+}
+
+model BatchItem {
+  id               String  @id @default(uuid())
+  batchId          String  @map("batch_id")
+  batch            Batch   @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  productId        String  @map("product_id")
+  product          Product @relation(fields: [productId], references: [id])
+  quantityOrdered  Int     @map("quantity_ordered")
+  quantityReceived Int     @default(0) @map("quantity_received")
+  unitCostEur      Decimal @db.Decimal(10, 2) @map("unit_cost_eur")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([batchId])
+  @@index([productId])
+  @@map("batch_items")
+}
+
+// ============================================
+// ORDER
+// ============================================
+
+model Order {
+  id              String        @id @default(uuid())
+  orderNumber     String        @unique @map("order_number")
+  userId          String        @map("user_id")
+  user            User          @relation(fields: [userId], references: [id])
+  status          OrderStatus   @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING) @map("payment_status")
+  paymentMethod   PaymentMethod? @map("payment_method")
+  subtotalGel     Decimal       @db.Decimal(10, 2) @map("subtotal_gel")
+  discountGel     Decimal       @default(0) @db.Decimal(10, 2) @map("discount_gel")
+  creditsUsedGel  Decimal       @default(0) @db.Decimal(10, 2) @map("credits_used_gel")
+  totalGel        Decimal       @db.Decimal(10, 2) @map("total_gel")
+  shippingAddress String?       @db.Text @map("shipping_address")
+  notes           String?       @db.Text
+
+  items   OrderItem[]
+  invoice Invoice?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String  @id @default(uuid())
+  orderId      String  @map("order_id")
+  order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String  @map("product_id")
+  product      Product @relation(fields: [productId], references: [id])
+  quantity     Int
+  unitPriceGel Decimal @db.Decimal(10, 2) @map("unit_price_gel")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+// ============================================
+// CREDIT TRANSACTIONS
+// ============================================
+
+model CreditTransaction {
+  id          String          @id @default(uuid())
+  userId      String          @map("user_id")
+  user        User            @relation(fields: [userId], references: [id])
+  type        TransactionType
+  amount      Decimal         @db.Decimal(10, 2)
+  description String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("credit_transactions")
+}
+
+// ============================================
+// GLOBAL SETTINGS
+// ============================================
+
+model GlobalSettings {
+  id                       String  @id @default("global-settings")
+  stockVisibilityPercentage Int     @default(40) @map("stock_visibility_percentage")
+  defaultMarkupPercentage  Int     @default(40) @map("default_markup_percentage")
+  eurToGelRate             Decimal @default(3.50) @db.Decimal(10, 2) @map("eur_to_gel_rate")
+  minOrderAmount           Decimal @default(0) @db.Decimal(10, 2) @map("min_order_amount")
+  maxOrderItems            Int     @default(100) @map("max_order_items")
+  orderCutoffHour          Int     @default(18) @map("order_cutoff_hour")
+  maintenanceMode          Boolean @default(false) @map("maintenance_mode")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("global_settings")
+}
+
+// ============================================
+// INVOICE
+// ============================================
+
+model Invoice {
+  id              String        @id @default(uuid())
+  invoiceNumber   String        @unique @map("invoice_number")
+  orderId         String        @unique @map("order_id")
+  order           Order         @relation(fields: [orderId], references: [id])
+  userId          String        @map("user_id")
+  user            User          @relation(fields: [userId], references: [id])
+  status          InvoiceStatus @default(ISSUED)
+  issueDate       DateTime      @default(now()) @map("issue_date")
+
+  // Buyer snapshot (frozen at creation)
+  buyerName       String        @map("buyer_name")
+  buyerTaxId      String?       @map("buyer_tax_id")
+  buyerPersonalId String?       @map("buyer_personal_id")
+  buyerAddress    String?       @db.Text @map("buyer_address")
+  buyerPhone      String?       @map("buyer_phone")
+  buyerEmail      String?       @map("buyer_email")
+
+  // Financials (GEL)
+  subtotalGel     Decimal       @db.Decimal(10, 2) @map("subtotal_gel")
+  vatAmount       Decimal       @db.Decimal(10, 2) @map("vat_amount")
+  discountGel     Decimal       @default(0) @db.Decimal(10, 2) @map("discount_gel")
+  creditsUsedGel  Decimal       @default(0) @db.Decimal(10, 2) @map("credits_used_gel")
+  totalGel        Decimal       @db.Decimal(10, 2) @map("total_gel")
+  notes           String?       @db.Text
+
+  items InvoiceItem[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([issueDate])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id           String  @id @default(uuid())
+  invoiceId    String  @map("invoice_id")
+  invoice      Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId    String  @map("product_id")
+  product      Product @relation(fields: [productId], references: [id])
+  productName  String  @map("product_name")
+  quantity     Int
+  unitPriceGel Decimal @db.Decimal(10, 2) @map("unit_price_gel")
+  vatAmount    Decimal @db.Decimal(10, 2) @map("vat_amount")
+  totalGel     Decimal @db.Decimal(10, 2) @map("total_gel")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}

@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Pure White & Deep Black Aesthetic */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 4%;
+    /* #09090b */
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 4%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 4%;
+
+    /* Premium Blue Accent (International Klein Blue vibe) */
+    --primary: 221 83% 53%;
+    /* #175eeb */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
+
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 6% 10%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 240 10% 4%;
+
+    --radius: 0.75rem;
+    /* 12px corners for modern feel */
+  }
+
+  /* Add smooth scrolling and better typography defaults */
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+
+  /* Custom Typography Classes */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply tracking-tight font-bold;
+  }
+}
+
+/* Glassmorphism Utilities */
+.glass {
+  @apply bg-white/70 backdrop-blur-xl border border-white/20;
+}
+
+.glass-dark {
+  @apply bg-black/70 backdrop-blur-xl border border-white/10;
+}
+
+/* Premium Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/30 hover:bg-muted-foreground/50 transition-colors rounded-full;
+}
+/* Print Styles for Invoices */
+@media print {
+  /* Remove shadows and rounded corners for better print quality */
+  * {
+    box-shadow: none !important;
+  }
+
+  /* Hide non-essential elements */
+  button,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Ensure proper page breaks */
+  .invoice-page {
+    page-break-after: always;
+  }
+
+  /* Optimize gradients for print (convert to solid colors) */
+  .bg-gradient-to-r {
+    background: #175eeb !important;
+  }
+
+  /* Ensure proper colors for print */
+  .print\:border-gray-300 {
+    border-color: #d1d5db !important;
+  }
+
+  /* Full width for print */
+  .max-w-4xl {
+    max-width: 100% !important;
+  }
+
+  /* Remove transitions for faster print */
+  * {
+    transition: none !important;
+  }
+
+  /* Ensure proper table styling */
+  table {
+    border-collapse: collapse !important;
+  }
+
+  /* Optimize page margins */
+  @page {
+    margin: 1.5cm;
+  }
+}
