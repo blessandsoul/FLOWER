@@ -23,7 +23,7 @@ export function ProductCard({ product }: ProductCardProps) {
     const addItem = useCart((state) => state.addItem);
 
     const isInStock = stock > 0;
-    const hasValidImage = product.photoUrl && !product.photoUrl.includes('placeholder') && !imageError;
+    const hasValidImage = product.photoUrl && !imageError;
 
     const handleAddToCart = () => {
         addItem(product, qty);

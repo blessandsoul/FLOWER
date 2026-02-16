@@ -9,15 +9,23 @@ import type { ServerProduct, ServerProductDetail } from '../types';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 /**
+ * Resolves the best available image URL for a product.
+ * Priority: imageUrl (external DB URL) > imageFilename (local upload) > null
+ */
+function resolveImageUrl(imageUrl: string | null, imageFilename: string | null): string | null {
+  if (imageUrl) return imageUrl;
+  if (imageFilename) return `${API_BASE_URL}/uploads/${imageFilename}`;
+  return null;
+}
+
+/**
  * Maps a server product to the client Product type
  */
 export function mapServerProductToClient(server: ServerProduct): Product {
   return {
     id: String(server.id),
     name: server.name,
-    photoUrl: server.imageFilename
-      ? `${API_BASE_URL}/uploads/${server.imageFilename}`
-      : '/images/placeholder-flower.png',
+    photoUrl: resolveImageUrl(server.imageUrl, server.imageFilename) ?? '',
     price: server.priceFrom ?? server.priceTiers[0]?.price ?? 0,
     minBoxSize: server.orderPer,
     stock: server.stock,
@@ -47,13 +55,11 @@ export function mapServerProductDetailToClient(server: ServerProductDetail): Pro
 
   // Build images array: main image first, then additional images
   const images: string[] = [];
-  if (base.photoUrl && !base.photoUrl.includes('placeholder')) {
+  if (base.photoUrl) {
     images.push(base.photoUrl);
   }
   for (const img of server.images ?? []) {
-    const url = img.imageFilename
-      ? `${API_BASE_URL}/uploads/${img.imageFilename}`
-      : img.imageUrl;
+    const url = resolveImageUrl(img.imageUrl, img.imageFilename);
     if (url && !images.includes(url)) {
       images.push(url);
     }

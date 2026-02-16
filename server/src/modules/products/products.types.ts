@@ -133,6 +133,7 @@ export interface ProductListItem {
   origin: string | null;
   stock: number;
   orderPer: number;
+  imageUrl: string | null;
   imageFilename: string | null;
   tags: string[];
   priceFrom: number | null;
