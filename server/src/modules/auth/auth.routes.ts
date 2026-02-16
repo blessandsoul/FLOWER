@@ -1,28 +1,92 @@
-/**
- * Auth Routes
- * Authentication and authorization endpoints
- */
+import type { FastifyInstance } from "fastify";
+import * as authController from "./auth.controller.js";
+import { authGuard } from "../../middlewares/authGuard.js";
+import { createRateLimitConfig } from "../../config/rateLimit.js";
 
-import { FastifyInstance } from 'fastify';
-import { authenticate } from '@/plugins/auth';
-import * as authController from './auth.controller';
+export async function authRoutes(fastify: FastifyInstance): Promise<void> {
+  // ==========================================
+  // CSRF TOKEN ENDPOINT
+  // ==========================================
 
-/**
- * Auth routes plugin
- * Prefix: /api/v1/auth
- */
-export default async function authRoutes(fastify: FastifyInstance) {
-  // Public routes
-  fastify.post('/register', authController.register);
-  fastify.post('/login', authController.login);
-  fastify.post('/refresh', authController.refreshToken);
+  // Get CSRF token for state-changing requests
+  // Client should call this and include the token in X-CSRF-Token header
+  fastify.get("/auth/csrf-token", authController.getCsrfToken);
 
-  // Protected routes
-  fastify.get('/me', {
-    preHandler: authenticate(),
-  }, authController.getMe);
+  // ==========================================
+  // CORE AUTH ENDPOINTS
+  // ==========================================
 
-  fastify.post('/logout', {
-    preHandler: authenticate(),
-  }, authController.logout);
+  // User Registration (default USER role)
+  fastify.post(
+    "/auth/register",
+    { config: createRateLimitConfig("register") },
+    authController.register
+  );
+
+  // Login - strict limit (5 requests per 15 minutes per IP)
+  fastify.post(
+    "/auth/login",
+    { config: createRateLimitConfig("login") },
+    authController.login
+  );
+
+  // Token refresh - moderate limit
+  fastify.post(
+    "/auth/refresh",
+    { config: createRateLimitConfig("refresh") },
+    authController.refresh
+  );
+
+  // Logout - light limit
+  fastify.post(
+    "/auth/logout",
+    { config: createRateLimitConfig("logout") },
+    authController.logout
+  );
+
+  // Logout all - requires auth, light limit
+  fastify.post(
+    "/auth/logout-all",
+    { preHandler: [authGuard], config: createRateLimitConfig("logout") },
+    authController.logoutAll
+  );
+
+  // Get current user - no rate limit (protected by auth)
+  fastify.get("/auth/me", { preHandler: [authGuard] }, authController.me);
+
+  // ==========================================
+  // EMAIL VERIFICATION
+  // ==========================================
+
+  // Verify email with token
+  fastify.post(
+    "/auth/verify-email",
+    { config: createRateLimitConfig("resendVerification") },
+    authController.verifyEmail
+  );
+
+  // Resend verification email
+  fastify.post(
+    "/auth/resend-verification",
+    { config: createRateLimitConfig("resendVerification") },
+    authController.resendVerification
+  );
+
+  // ==========================================
+  // PASSWORD RESET
+  // ==========================================
+
+  // Request password reset (forgot password)
+  fastify.post(
+    "/auth/forgot-password",
+    { config: createRateLimitConfig("forgotPassword") },
+    authController.forgotPassword
+  );
+
+  // Reset password with token
+  fastify.post(
+    "/auth/reset-password",
+    { config: createRateLimitConfig("resetPassword") },
+    authController.resetPassword
+  );
 }

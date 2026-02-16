@@ -52,7 +52,7 @@ export const useCart = create<CartStore>()(
             },
             clearCart: () => set({ items: [] }),
             totalItems: () => get().items.reduce((acc, item) => acc + item.quantity, 0),
-            totalPrice: () => get().items.reduce((acc, item) => acc + item.priceGel * item.quantity, 0),
+            totalPrice: () => get().items.reduce((acc, item) => acc + item.price * item.quantity, 0),
         }),
         {
             name: 'florca-cart',

@@ -92,7 +92,7 @@ export function CartSheet() {
                                                 </Button>
                                             </div>
                                             <div className="text-right">
-                                                <div className="font-bold text-sm">{(item.priceGel * item.quantity).toFixed(2)} ₾</div>
+                                                <div className="font-bold text-sm">{(item.price * item.quantity).toFixed(2)} ₾</div>
                                                 <button
                                                     onClick={() => removeItem(item.id)}
                                                     className="text-[10px] text-destructive hover:underline flex items-center justify-end gap-1"

@@ -1,12 +1,42 @@
 {
   "permissions": {
     "allow": [
-      "Bash(powershell -Command:*)",
-      "Bash(npm install:*)",
-      "Bash(npm run prisma:generate:*)",
-      "Bash(npm uninstall:*)",
-      "Bash(npm run type-check:*)",
-      "Bash(timeout 5 npm run dev:*)"
+      "Bash(npx prisma:*)",
+      "Bash(npm run build:*)",
+      "Bash(dir:*)",
+      "Bash(curl:*)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_wait_for",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "mcp__plugin_playwright_playwright__browser_console_messages",
+      "mcp__plugin_playwright_playwright__browser_evaluate",
+      "mcp__plugin_playwright_playwright__browser_close",
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "mcp__plugin_playwright_playwright__browser_press_key",
+      "mcp__plugin_playwright_playwright__browser_network_requests",
+      "Bash(npx tsc:*)",
+      "Bash(timeout:*)",
+      "Bash(powershell -Command \"Start-Sleep -Seconds 10; Get-Content ''C:\\\\Temp\\\\claude\\\\c--Users-seed-Documents-GitHub-FLOWER\\\\tasks\\\\b2c6faa.output''\")",
+      "mcp__plugin_playwright_playwright__browser_click",
+      "mcp__plugin_playwright_playwright__browser_type",
+      "mcp__plugin_playwright_playwright__browser_navigate_back",
+      "Bash(Start-Process -FilePath \"npx\" -ArgumentList \"tsx\", \"src/server.ts\" -NoNewWindow)",
+      "Bash(npx tsx:*)",
+      "mcp__plugin_playwright_playwright__browser_fill_form",
+      "Bash(pkill:*)",
+      "Bash(taskkill:*)",
+      "Bash(netstat:*)",
+      "Bash(printf:*)",
+      "Bash(xxd:*)",
+      "Bash(node -e:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(Select-String:*)",
+      "Bash(for f in 35666265dd4d.jpg fe908dcc8b91.jpg eba9c06c08b7.jpg 840ffb8f808f.jpg 5f7b3f7898d2.jpg)",
+      "Bash(do ls \"c:\\\\Users\\\\seed\\\\Documents\\\\GitHub\\\\FLOWER\\\\server\\\\uploads$f\")",
+      "Bash(echo:*)",
+      "Bash(done)",
+      "Bash(python3:*)"
     ]
   }
 }

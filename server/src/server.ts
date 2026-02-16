@@ -1,80 +1,70 @@
-/**
- * Server Bootstrap
- * Starts the Fastify server and handles graceful shutdown
- */
+import "dotenv/config";
+import { env } from "./config/env.js";
+import { logger } from "./libs/logger.js";
+import { connectRedis, disconnectRedis, isRedisConnected } from "./libs/redis.js";
+import { testDatabaseConnection } from "./libs/prisma.js";
+import buildApp from "./app.js";
 
-import buildApp from './app';
-import { PORT, HOST } from '@/config';
-import { logger } from '@/libs/logger';
-import { prisma } from '@/libs/prisma';
-import { disconnectRedis } from '@/libs/redis';
+const app = buildApp();
 
-/**
- * Start server
- */
-const start = async () => {
+// Track service availability
+let redisAvailable = false;
+let databaseAvailable = false;
+
+async function start(): Promise<void> {
   try {
-    const app = await buildApp();
-
-    // Start listening
-    await app.listen({ port: PORT, host: HOST });
-
-    logger.info(
-      {
-        port: PORT,
-        host: HOST,
-        env: process.env.NODE_ENV,
-      },
-      'Server started successfully'
-    );
-
-    // Signal PM2 that app is ready (for zero-downtime deployments)
-    if (process.send) {
-      process.send('ready');
+    // Test database connection (non-fatal)
+    databaseAvailable = await testDatabaseConnection();
+    if (!databaseAvailable) {
+      logger.warn("Database unavailable - API endpoints may not work properly");
     }
-  } catch (error) {
-    logger.error({ error }, 'Failed to start server');
+
+    // Connect to Redis (non-fatal)
+    redisAvailable = await connectRedis();
+    if (!redisAvailable) {
+      logger.warn("Redis unavailable - caching, rate limiting, and real-time features disabled");
+    }
+
+    // Start Fastify server (this should always succeed if port is available)
+    await app.listen({ port: env.PORT, host: "0.0.0.0" });
+    logger.info(`Server started on port ${env.PORT}`);
+
+    // Signal PM2 that the app is ready (for cluster mode with wait_ready: true)
+    if (process.send) {
+      process.send("ready");
+    }
+
+    // Log service status
+    logger.info({
+      database: databaseAvailable ? "Connected" : "Unavailable",
+      redis: redisAvailable ? "Connected" : "Unavailable",
+    }, "Service Status:");
+  } catch (err) {
+    logger.fatal(err, "Failed to start server");
     process.exit(1);
   }
-};
+}
 
-/**
- * Graceful shutdown handler
- */
-const shutdown = async (signal: string) => {
-  logger.info(`${signal} received, shutting down gracefully...`);
-
+async function shutdown(): Promise<void> {
+  logger.info("Shutting down server...");
   try {
-    // Disconnect Prisma
-    await prisma.$disconnect();
-    logger.info('Database disconnected');
+    // Disconnect Redis (only if connected)
+    if (redisAvailable && isRedisConnected()) {
+      await disconnectRedis();
+    }
 
-    // Disconnect Redis
-    await disconnectRedis();
-    logger.info('Redis disconnected');
+    // Close Fastify
+    await app.close();
 
-    logger.info('Graceful shutdown complete');
+    logger.info("Server shut down gracefully");
     process.exit(0);
-  } catch (error) {
-    logger.error({ error }, 'Error during shutdown');
+  } catch (err) {
+    logger.error(err, "Error during shutdown");
     process.exit(1);
   }
-};
+}
 
-// Register shutdown handlers
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
 
-// Handle uncaught errors
-process.on('uncaughtException', (error) => {
-  logger.fatal({ error }, 'Uncaught exception');
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason) => {
-  logger.fatal({ reason }, 'Unhandled rejection');
-  process.exit(1);
-});
-
-// Start server
 start();

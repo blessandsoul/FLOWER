@@ -1,88 +1,93 @@
 /**
  * Invoices API Service
- * HTTP calls to the invoices endpoints
+ *
+ * NOTE: This is a mock implementation for standalone client development.
+ * Replace with real API calls when server is connected.
  */
 
-const API_BASE = '/api/v1/invoices';
-
-/**
- * Fetch function wrapper that handles JSON responses
- */
-async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers,
-        },
-    });
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: { message: 'Request failed' } }));
-        throw new Error(error.error?.message || 'Request failed');
-    }
-
-    return response.json();
-}
-
-/**
- * Get auth headers from stored token
- */
-function getAuthHeaders(): Record<string, string> {
-    // Token retrieval will depend on auth implementation
-    const token = typeof window !== 'undefined'
-        ? localStorage.getItem('accessToken')
-        : null;
-
-    return token ? { Authorization: `Bearer ${token}` } : {};
-}
+import { MOCK_INVOICES } from '@/lib/mock-data';
 
 // Customer endpoints
 export const invoicesApi = {
-    getMyInvoices: (page = 1, limit = 10) =>
-        apiFetch(`${API_BASE}/my?page=${page}&limit=${limit}`, {
-            headers: getAuthHeaders(),
-        }),
+    getMyInvoices: async (page = 1, limit = 10) => {
+        // Mock paginated response
+        const start = (page - 1) * limit;
+        const end = start + limit;
+        const items = MOCK_INVOICES.slice(start, end);
+        return {
+            success: true,
+            data: {
+                items,
+                pagination: {
+                    page,
+                    limit,
+                    total: MOCK_INVOICES.length,
+                    totalPages: Math.ceil(MOCK_INVOICES.length / limit),
+                },
+            },
+        };
+    },
 
-    getMyInvoice: (id: string) =>
-        apiFetch(`${API_BASE}/my/${id}`, {
-            headers: getAuthHeaders(),
-        }),
+    getMyInvoice: async (id: string) => {
+        const invoice = MOCK_INVOICES.find(inv => inv.id === id);
+        if (!invoice) {
+            throw new Error('Invoice not found');
+        }
+        return { success: true, data: invoice };
+    },
 
-    downloadMyPdf: async (id: string): Promise<Blob> => {
-        const response = await fetch(`${API_BASE}/my/${id}/pdf`, {
-            headers: getAuthHeaders(),
-        });
-        if (!response.ok) throw new Error('Failed to download PDF');
-        return response.blob();
+    downloadMyPdf: async (_id: string): Promise<Blob> => {
+        // Return empty blob - PDF generation requires server
+        console.warn('PDF download requires server connection');
+        return new Blob(['PDF generation requires server'], { type: 'text/plain' });
     },
 
     // Admin/Operator/Accountant endpoints
-    listInvoices: (params: { page?: number; limit?: number; userId?: string; status?: string; fromDate?: string; toDate?: string } = {}) => {
-        const searchParams = new URLSearchParams();
-        Object.entries(params).forEach(([key, value]) => {
-            if (value !== undefined) searchParams.set(key, String(value));
-        });
-        return apiFetch(`${API_BASE}?${searchParams.toString()}`, {
-            headers: getAuthHeaders(),
-        });
+    listInvoices: async (params: { page?: number; limit?: number; userId?: string; status?: string; fromDate?: string; toDate?: string } = {}) => {
+        const { page = 1, limit = 10, status } = params;
+        let filtered = [...MOCK_INVOICES];
+
+        if (status) {
+            filtered = filtered.filter(inv => inv.status === status);
+        }
+
+        const start = (page - 1) * limit;
+        const end = start + limit;
+        const items = filtered.slice(start, end);
+
+        return {
+            success: true,
+            data: {
+                items,
+                pagination: {
+                    page,
+                    limit,
+                    total: filtered.length,
+                    totalPages: Math.ceil(filtered.length / limit),
+                },
+            },
+        };
     },
 
-    getInvoice: (id: string) =>
-        apiFetch(`${API_BASE}/${id}`, {
-            headers: getAuthHeaders(),
-        }),
-
-    downloadPdf: async (id: string): Promise<Blob> => {
-        const response = await fetch(`${API_BASE}/${id}/pdf`, {
-            headers: getAuthHeaders(),
-        });
-        if (!response.ok) throw new Error('Failed to download PDF');
-        return response.blob();
+    getInvoice: async (id: string) => {
+        const invoice = MOCK_INVOICES.find(inv => inv.id === id);
+        if (!invoice) {
+            throw new Error('Invoice not found');
+        }
+        return { success: true, data: invoice };
     },
 
-    getByOrder: (orderId: string) =>
-        apiFetch(`${API_BASE}/order/${orderId}`, {
-            headers: getAuthHeaders(),
-        }),
+    downloadPdf: async (_id: string): Promise<Blob> => {
+        // Return empty blob - PDF generation requires server
+        console.warn('PDF download requires server connection');
+        return new Blob(['PDF generation requires server'], { type: 'text/plain' });
+    },
+
+    getByOrder: async (orderId: string) => {
+        const invoice = MOCK_INVOICES.find(inv => inv.orderNumber === orderId);
+        if (!invoice) {
+            throw new Error('Invoice not found for order');
+        }
+        return { success: true, data: invoice };
+    },
 };

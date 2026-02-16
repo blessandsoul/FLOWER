@@ -1,4 +1,4 @@
-import { Product, User, Order, InvoiceSummary } from '../types';
+import { User, InvoiceSummary, Product, Order } from '../types';
 
 // ============================================
 // TEST ACCOUNTS
@@ -10,84 +10,32 @@ export const TEST_ACCOUNTS: User[] = [
         email: 'admin@florca.ge',
         firstName: 'Admin',
         lastName: 'User',
-        role: 'ADMIN',
-        balance: 0,
-        isVip: false,
-        isReseller: false,
+        phoneNumber: null,
+        roles: ['ADMIN'],
+        isActive: true,
         emailVerified: true,
-    },
-    {
-        id: 'u-operator',
-        email: 'operator@florca.ge',
-        firstName: 'Operator',
-        lastName: 'User',
-        role: 'OPERATOR',
-        balance: 0,
-        isVip: false,
-        isReseller: false,
-        emailVerified: true,
-    },
-    {
-        id: 'u-logistics',
-        email: 'logistics@florca.ge',
-        firstName: 'Logistics',
-        lastName: 'Manager',
-        role: 'LOGISTICS',
-        balance: 0,
-        isVip: false,
-        isReseller: false,
-        emailVerified: true,
-    },
-    {
-        id: 'u-accountant',
-        email: 'accountant@florca.ge',
-        firstName: 'Accountant',
-        lastName: 'User',
-        role: 'ACCOUNTANT',
-        balance: 0,
-        isVip: false,
-        isReseller: false,
-        emailVerified: true,
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
     },
     {
         id: 'u-user',
         email: 'user@example.com',
         firstName: 'Regular',
         lastName: 'Customer',
-        role: 'USER',
-        balance: 150.0,
-        isVip: false,
-        isReseller: false,
+        phoneNumber: '+995555123456',
+        roles: ['USER'],
+        isActive: true,
         emailVerified: true,
-    },
-    {
-        id: 'u-reseller',
-        email: 'reseller@example.com',
-        firstName: 'Reseller',
-        lastName: 'Business',
-        role: 'RESELLER',
-        balance: 500.0,
-        isVip: false,
-        isReseller: true,
-        emailVerified: true,
-    },
-    {
-        id: 'u-vip',
-        email: 'vip@example.com',
-        firstName: 'VIP',
-        lastName: 'Customer',
-        role: 'USER',
-        balance: 1000.0,
-        isVip: true,
-        isReseller: false,
-        emailVerified: true,
+        createdAt: '2026-01-15T00:00:00Z',
+        updatedAt: '2026-01-15T00:00:00Z',
     },
 ];
 
-export const MOCK_USER = TEST_ACCOUNTS[4]; // Regular user as default
+export const MOCK_USER = TEST_ACCOUNTS[1]; // Regular user as default
 
 // ============================================
-// PRODUCTS
+// MOCK PRODUCTS (for dashboard demo - use API for catalog)
+// See: client/src/features/products/services/products.api.ts
 // ============================================
 
 export const MOCK_PRODUCTS: Product[] = [
@@ -96,70 +44,60 @@ export const MOCK_PRODUCTS: Product[] = [
         name: 'ვარდი რედ ნაომი',
         category: 'ვარდი',
         color: 'წითელი',
-        lengthCm: 60,
         minBoxSize: 80,
-        priceEur: 0.45,
-        priceGel: 1.45,
-        totalAvailable: 1000,
-        currentCollected: 240,
+        price: 1.45,
+        stock: 1000,
         photoUrl: '/images/red-naomi.png',
+        priceTiers: [{ minQuantity: 1, price: 1.45 }],
     },
     {
         id: 'p-2',
         name: 'ვარდი ავალანჟი',
         category: 'ვარდი',
         color: 'თეთრი',
-        lengthCm: 70,
         minBoxSize: 60,
-        priceEur: 0.55,
-        priceGel: 1.75,
-        totalAvailable: 800,
-        currentCollected: 55,
+        price: 1.75,
+        stock: 800,
         photoUrl: '/images/cat-roses.png',
+        priceTiers: [{ minQuantity: 1, price: 1.75 }],
     },
     {
         id: 'p-3',
         name: 'ვარდი პინკ ფლოიდი',
         category: 'ვარდი',
         color: 'ვარდისფერი',
-        lengthCm: 50,
         minBoxSize: 100,
-        priceEur: 0.35,
-        priceGel: 1.15,
-        totalAvailable: 2000,
-        currentCollected: 850,
+        price: 1.15,
+        stock: 2000,
         photoUrl: '/images/cat-peonies.png',
+        priceTiers: [{ minQuantity: 1, price: 1.15 }],
     },
     {
         id: 'p-4',
         name: 'ტიტა სტრონგ გოლდი',
         category: 'ტიტა',
         color: 'ყვითელი',
-        lengthCm: 35,
         minBoxSize: 500,
-        priceEur: 0.15,
-        priceGel: 0.55,
-        totalAvailable: 5000,
-        currentCollected: 1200,
+        price: 0.55,
+        stock: 5000,
         photoUrl: '/images/cat-tulips.png',
+        priceTiers: [{ minQuantity: 1, price: 0.55 }],
     },
     {
         id: 'p-5',
         name: 'ევკალიპტი სინერეა',
         category: 'მწვანე',
         color: 'მწვანე',
-        lengthCm: 80,
         minBoxSize: 20,
-        priceEur: 2.50,
-        priceGel: 7.80,
-        totalAvailable: 200,
-        currentCollected: 18,
+        price: 7.80,
+        stock: 200,
         photoUrl: '/images/cat-greenery.png',
+        priceTiers: [{ minQuantity: 1, price: 7.80 }],
     },
 ];
 
 // ============================================
-// ORDERS
+// MOCK ORDERS (for dashboard demo)
 // ============================================
 
 export const MOCK_ORDERS: Order[] = [

@@ -6,6 +6,7 @@ import { Toaster } from 'sonner';
 import { store } from '@/store';
 import { useState } from 'react';
 import { DevLoginPanel } from '@/components/dev/DevLoginPanel';
+import { AuthProvider } from '@/components/auth/AuthProvider';
 
 export const Providers = ({ children }: { children: React.ReactNode }) => {
     const [queryClient] = useState(() => new QueryClient({
@@ -20,9 +21,11 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
     return (
         <Provider store={store}>
             <QueryClientProvider client={queryClient}>
-                {children}
-                <Toaster position="top-right" />
-                <DevLoginPanel />
+                <AuthProvider>
+                    {children}
+                    <Toaster position="top-right" />
+                    <DevLoginPanel />
+                </AuthProvider>
             </QueryClientProvider>
         </Provider>
     );

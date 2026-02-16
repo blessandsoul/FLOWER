@@ -1,44 +1,120 @@
-/**
- * Products Routes
- * Product management endpoints
- */
+import type { FastifyInstance } from "fastify";
+import * as productsController from "./products.controller.js";
+import { authGuard, requireRole } from "../../middlewares/authGuard.js";
 
-import { FastifyInstance } from 'fastify';
-import { authenticate, optionalAuth } from '@/plugins/auth';
-import { USER_ROLES } from '@/config/constants';
-import * as productsController from './products.controller';
+export async function productRoutes(fastify: FastifyInstance): Promise<void> {
+  // ==========================================
+  // PRODUCTS - Public GET, Admin CUD
+  // ==========================================
 
-/**
- * Products routes plugin
- * Prefix: /api/v1/products
- */
-export default async function productsRoutes(fastify: FastifyInstance) {
-  // Public routes (with optional auth for personalized pricing)
-  fastify.get('/', {
-    preHandler: optionalAuth(),
-  }, productsController.listProducts);
+  // Public: List all products with filters and pagination
+  fastify.get("/products", productsController.getProducts);
 
-  fastify.get('/categories', productsController.getCategories);
+  // Public: Get product by ID
+  fastify.get("/products/:id", productsController.getProductById);
 
-  fastify.get('/:id', {
-    preHandler: optionalAuth(),
-  }, productsController.getProduct);
+  // Admin: Create product
+  fastify.post(
+    "/products",
+    { preHandler: [authGuard, requireRole("ADMIN")] },
+    productsController.createProduct
+  );
 
-  // Admin/Operator routes
-  fastify.post('/', {
-    preHandler: authenticate([USER_ROLES.ADMIN, USER_ROLES.OPERATOR]),
-  }, productsController.createProduct);
+  // Admin: Update product
+  fastify.patch(
+    "/products/:id",
+    { preHandler: [authGuard, requireRole("ADMIN")] },
+    productsController.updateProduct
+  );
 
-  fastify.patch('/:id', {
-    preHandler: authenticate([USER_ROLES.ADMIN, USER_ROLES.OPERATOR]),
-  }, productsController.updateProduct);
+  // Admin: Delete product
+  fastify.delete(
+    "/products/:id",
+    { preHandler: [authGuard, requireRole("ADMIN")] },
+    productsController.deleteProduct
+  );
 
-  // Stock management (admin/operator/logistics)
-  fastify.post('/:id/stock', {
-    preHandler: authenticate([
-      USER_ROLES.ADMIN,
-      USER_ROLES.OPERATOR,
-      USER_ROLES.LOGISTICS,
-    ]),
-  }, productsController.adjustStock);
+  // ==========================================
+  // COLORS - Public GET, Admin CUD
+  // ==========================================
+
+  // Public: List all colors
+  fastify.get("/colors", productsController.getColors);
+
+  // Admin: Create color
+  fastify.post(
+    "/colors",
+    { preHandler: [authGuard, requireRole("ADMIN")] },
+    productsController.createColor
+  );
+
+  // Admin: Delete color
+  fastify.delete(
+    "/colors/:id",
+    { preHandler: [authGuard, requireRole("ADMIN")] },
+    productsController.deleteColor
+  );
+
+  // ==========================================
+  // GROWERS - Public GET, Admin CUD
+  // ==========================================
+
+  // Public: List all growers
+  fastify.get("/growers", productsController.getGrowers);
+
+  // Admin: Create grower
+  fastify.post(
+    "/growers",
+    { preHandler: [authGuard, requireRole("ADMIN")] },
+    productsController.createGrower
+  );
+
+  // Admin: Delete grower
+  fastify.delete(
+    "/growers/:id",
+    { preHandler: [authGuard, requireRole("ADMIN")] },
+    productsController.deleteGrower
+  );
+
+  // ==========================================
+  // ORIGINS - Public GET, Admin CUD
+  // ==========================================
+
+  // Public: List all origins
+  fastify.get("/origins", productsController.getOrigins);
+
+  // Admin: Create origin
+  fastify.post(
+    "/origins",
+    { preHandler: [authGuard, requireRole("ADMIN")] },
+    productsController.createOrigin
+  );
+
+  // Admin: Delete origin
+  fastify.delete(
+    "/origins/:id",
+    { preHandler: [authGuard, requireRole("ADMIN")] },
+    productsController.deleteOrigin
+  );
+
+  // ==========================================
+  // TAGS - Public GET, Admin CUD
+  // ==========================================
+
+  // Public: List all tags
+  fastify.get("/tags", productsController.getTags);
+
+  // Admin: Create tag
+  fastify.post(
+    "/tags",
+    { preHandler: [authGuard, requireRole("ADMIN")] },
+    productsController.createTag
+  );
+
+  // Admin: Delete tag
+  fastify.delete(
+    "/tags/:id",
+    { preHandler: [authGuard, requireRole("ADMIN")] },
+    productsController.deleteTag
+  );
 }

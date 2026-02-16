@@ -1,209 +1,347 @@
-/**
- * Auth Service
- * Business logic for authentication and authorization
- */
-
+import * as argon2 from "argon2";
+import crypto from "crypto";
+import jwt from "jsonwebtoken";
+import { env } from "../../config/env.js";
 import {
-  hashPassword,
-  comparePassword,
-  generateTokenPair,
-  verifyRefreshToken,
-} from '@/libs/auth';
-import { logger } from '@/libs/logger';
-import {
-  BadRequestError,
-  UnauthorizedError,
   ConflictError,
+  UnauthorizedError,
   NotFoundError,
-} from '@/shared/errors/errors';
-import * as authRepo from './auth.repo';
-import type { AuthResponse } from './auth.types';
-import type { RegisterInput, LoginInput } from './auth.schemas';
+} from "../../libs/errors.js";
+import { logger } from "../../libs/logger.js";
+import * as userRepo from "../users/user.repo.js";
+import * as sessionRepo from "./session.repo.js";
+import * as securityService from "./security.service.js";
+import type { SafeUser, User, UserRole } from "../users/user.types.js";
+import type {
+  AccessTokenPayload,
+  RefreshTokenPayload,
+  AuthTokens,
+  AuthResponse,
+} from "./auth.types.js";
+import type { RegisterInput, LoginInput, LoginMeta } from "./auth.schemas.js";
 
-/**
- * Register new user
- */
-export async function register(input: RegisterInput): Promise<AuthResponse> {
-  // Check if user already exists
-  const existingUser = await authRepo.findUserByEmail(input.email);
-  if (existingUser) {
-    throw new ConflictError('USER_ALREADY_EXISTS', 'Email already registered');
+// ==========================================
+// HELPER FUNCTIONS
+// ==========================================
+
+async function toSafeUser(user: User): Promise<SafeUser> {
+  const userWithRoles = await userRepo.findUserWithRolesForSafeUser(user.id);
+
+  if (!userWithRoles) {
+    const roles = await userRepo.getUserRoles(user.id);
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phoneNumber: user.phoneNumber,
+      roles,
+      isActive: user.isActive,
+      emailVerified: user.emailVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
   }
 
-  // Hash password
-  const hashedPassword = await hashPassword(input.password);
+  return {
+    id: userWithRoles.id,
+    email: userWithRoles.email,
+    firstName: userWithRoles.firstName,
+    lastName: userWithRoles.lastName,
+    phoneNumber: userWithRoles.phoneNumber,
+    roles: userWithRoles.roles,
+    isActive: userWithRoles.isActive,
+    emailVerified: userWithRoles.emailVerified,
+    createdAt: userWithRoles.createdAt,
+    updatedAt: userWithRoles.updatedAt,
+  };
+}
 
-  // Create user
-  const user = await authRepo.createUser({
-    email: input.email,
-    password: hashedPassword,
-    firstName: input.firstName,
-    lastName: input.lastName,
-    role: input.role,
+function generateAccessToken(
+  userId: string,
+  roles: UserRole[],
+  tokenVersion: number,
+  emailVerified: boolean
+): string {
+  const payload: AccessTokenPayload = { userId, roles, tokenVersion, emailVerified };
+  return jwt.sign(payload, env.ACCESS_TOKEN_SECRET, {
+    expiresIn: env.ACCESS_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"],
+  });
+}
+
+function generateRefreshToken(
+  userId: string,
+  sessionId: string,
+  tokenVersion: number
+): string {
+  const payload: RefreshTokenPayload = { userId, sessionId, tokenVersion };
+  return jwt.sign(payload, env.REFRESH_TOKEN_SECRET, {
+    expiresIn: env.REFRESH_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"],
+  });
+}
+
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function getRefreshTokenExpiresAt(): Date {
+  const expiresIn = env.REFRESH_TOKEN_EXPIRES_IN;
+  const match = expiresIn.match(/^(\d+)([smhd])$/);
+  if (!match) {
+    return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  }
+  const value = parseInt(match[1], 10);
+  const unit = match[2];
+  const multipliers: Record<string, number> = {
+    s: 1000,
+    m: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+  };
+  return new Date(Date.now() + value * multipliers[unit]);
+}
+
+async function createSessionAndTokens(
+  user: User,
+  meta?: LoginMeta
+): Promise<AuthTokens> {
+  const roles = await userRepo.getUserRoles(user.id);
+  const accessToken = generateAccessToken(user.id, roles, user.tokenVersion, user.emailVerified);
+  const tempRefreshToken = crypto.randomBytes(32).toString("hex");
+  const refreshTokenHash = hashToken(tempRefreshToken);
+  const expiresAt = getRefreshTokenExpiresAt();
+
+  const session = await sessionRepo.createSession({
+    userId: user.id,
+    refreshTokenHash,
+    expiresAt,
+    userAgent: meta?.userAgent,
+    ipAddress: meta?.ipAddress,
   });
 
-  logger.info({ userId: user.id, email: user.email }, 'User registered');
+  const refreshToken = generateRefreshToken(
+    user.id,
+    session.id,
+    user.tokenVersion
+  );
 
-  // Generate tokens
-  const tokens = generateTokenPair(user.id, user.role);
+  await sessionRepo.updateSessionTokenHash(
+    session.id,
+    hashToken(refreshToken),
+    expiresAt
+  );
 
-  // TODO: Send email verification email
-
-  return {
-    user: {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      balance: user.balance.toString(),
-      emailVerified: user.emailVerified,
-    },
-    tokens,
-  };
+  return { accessToken, refreshToken };
 }
 
-/**
- * Login user
- */
-export async function login(input: LoginInput): Promise<AuthResponse> {
-  // Find user
-  const user = await authRepo.findUserByEmail(input.email);
-  if (!user) {
-    throw new UnauthorizedError(
-      'AUTH_INVALID_CREDENTIALS',
-      'Invalid email or password'
-    );
+// ==========================================
+// USER REGISTRATION (default USER role)
+// ==========================================
+
+export async function register(
+  input: RegisterInput,
+  meta?: LoginMeta
+): Promise<AuthResponse> {
+  const existingUser = await userRepo.findUserByEmail(input.email);
+  if (existingUser) {
+    throw new ConflictError("Email already registered", "EMAIL_EXISTS");
   }
 
-  // Verify password
-  const isPasswordValid = await comparePassword(input.password, user.password);
-  if (!isPasswordValid) {
-    throw new UnauthorizedError(
-      'AUTH_INVALID_CREDENTIALS',
-      'Invalid email or password'
-    );
-  }
+  const passwordHash = await argon2.hash(input.password);
 
-  // Update last login
-  await authRepo.updateLastLogin(user.id);
+  const user = await userRepo.createUser({
+    email: input.email,
+    passwordHash,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    role: "USER",
+  });
 
-  logger.info({ userId: user.id, email: user.email }, 'User logged in');
-
-  // Generate tokens
-  const tokens = generateTokenPair(user.id, user.role);
-
-  return {
-    user: {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      balance: user.balance.toString(),
-      emailVerified: user.emailVerified,
-    },
-    tokens,
-  };
-}
-
-/**
- * Refresh access token
- */
-export async function refreshAccessToken(refreshToken: string): Promise<{
-  accessToken: string;
-  refreshToken: string;
-}> {
+  // Send verification email with proper error handling
+  const warnings: string[] = [];
   try {
-    // Verify refresh token
-    const payload = verifyRefreshToken(refreshToken);
-
-    // Check if user still exists
-    const user = await authRepo.findUserById(payload.sub);
-    if (!user) {
-      throw new UnauthorizedError(
-        'AUTH_USER_NOT_FOUND',
-        'User no longer exists'
-      );
-    }
-
-    // Generate new token pair
-    const tokens = generateTokenPair(user.id, user.role);
-
-    logger.info({ userId: user.id }, 'Access token refreshed');
-
-    return tokens;
-  } catch (error) {
-    if (error instanceof Error) {
-      if (
-        error.message === 'AUTH_TOKEN_EXPIRED' ||
-        error.message === 'AUTH_TOKEN_INVALID'
-      ) {
-        throw new UnauthorizedError(
-          'AUTH_REFRESH_TOKEN_INVALID',
-          'Invalid or expired refresh token'
-        );
-      }
-    }
-    throw error;
+    await securityService.sendVerification(user);
+  } catch (err) {
+    logger.error({ err, userId: user.id }, "Failed to send verification email");
+    warnings.push("Verification email could not be sent. Please request a new one from your account settings.");
   }
+
+  const tokens = await createSessionAndTokens(user, meta);
+
+  logger.info({ userId: user.id }, "User registered successfully");
+
+  const response: AuthResponse = {
+    user: await toSafeUser(user),
+    ...tokens,
+  };
+
+  if (warnings.length > 0) {
+    response.warnings = warnings;
+  }
+
+  return response;
 }
 
-/**
- * Get current user profile
- */
-export async function getMe(userId: string): Promise<AuthResponse['user']> {
-  const user = await authRepo.findUserById(userId);
+// ==========================================
+// LOGIN
+// ==========================================
+
+export async function login(
+  input: LoginInput,
+  meta?: LoginMeta
+): Promise<AuthResponse> {
+  const user = await userRepo.findUserByEmail(input.email);
   if (!user) {
-    throw new NotFoundError('USER_NOT_FOUND', 'User not found');
+    throw new UnauthorizedError("Invalid credentials", "INVALID_CREDENTIALS");
   }
 
+  // Check if account is locked
+  await securityService.checkAccountLock(user);
+
+  if (!user.isActive) {
+    throw new UnauthorizedError("Account is disabled", "ACCOUNT_DISABLED");
+  }
+
+  const isPasswordValid = await argon2.verify(user.passwordHash, input.password);
+  if (!isPasswordValid) {
+    // Record failed login attempt
+    await securityService.recordFailedLogin(user);
+    throw new UnauthorizedError("Invalid credentials", "INVALID_CREDENTIALS");
+  }
+
+  // Reset failed login attempts on successful login
+  await securityService.resetFailedLoginAttempts(user);
+
+  const tokens = await createSessionAndTokens(user, meta);
+
+  logger.info({ userId: user.id }, "User logged in successfully");
+
   return {
-    id: user.id,
-    email: user.email,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    role: user.role,
-    balance: user.balance.toString(),
-    emailVerified: user.emailVerified,
+    user: await toSafeUser(user),
+    ...tokens,
   };
 }
 
-/**
- * Verify email with token
- * TODO: Implement email verification token logic
- */
-export async function verifyEmail(token: string): Promise<void> {
-  // TODO: Verify token and mark email as verified
-  throw new BadRequestError(
-    'NOT_IMPLEMENTED',
-    'Email verification not yet implemented'
+// ==========================================
+// TOKEN REFRESH
+// ==========================================
+
+export async function refresh(refreshToken: string): Promise<AuthTokens> {
+  let payload: RefreshTokenPayload;
+
+  try {
+    payload = jwt.verify(
+      refreshToken,
+      env.REFRESH_TOKEN_SECRET
+    ) as RefreshTokenPayload;
+  } catch (err) {
+    // Log the actual JWT error for debugging
+    // SECURITY: Use hash prefix instead of token preview to avoid leaking token data to logs
+    const jwtError = err as Error & { name?: string };
+    const tokenHashPrefix = refreshToken
+      ? crypto.createHash("sha256").update(refreshToken).digest("hex").substring(0, 8)
+      : "empty";
+    logger.warn(
+      {
+        err,
+        errorName: jwtError.name,
+        tokenHashPrefix,
+      },
+      "Invalid refresh token"
+    );
+
+    // Provide specific error codes for different JWT failures
+    if (jwtError.name === "TokenExpiredError") {
+      throw new UnauthorizedError("Refresh token has expired", "REFRESH_TOKEN_EXPIRED");
+    }
+    if (jwtError.name === "JsonWebTokenError") {
+      throw new UnauthorizedError("Malformed refresh token", "MALFORMED_REFRESH_TOKEN");
+    }
+    throw new UnauthorizedError("Invalid refresh token", "INVALID_REFRESH_TOKEN");
+  }
+
+  const session = await sessionRepo.findActiveSessionById(payload.sessionId);
+  if (!session) {
+    throw new UnauthorizedError("Session not found or revoked", "SESSION_REVOKED");
+  }
+
+  // Validate refresh token hash matches stored hash (prevents session hijacking)
+  const providedHash = hashToken(refreshToken);
+  if (session.refreshTokenHash !== providedHash) {
+    // Possible token theft - revoke the session immediately
+    await sessionRepo.revokeSession(session.id);
+    logger.warn(
+      { sessionId: session.id, userId: payload.userId },
+      "Refresh token hash mismatch - possible token theft, session revoked"
+    );
+    throw new UnauthorizedError("Invalid refresh token", "INVALID_REFRESH_TOKEN");
+  }
+
+  const user = await userRepo.findUserById(payload.userId);
+  if (!user) {
+    throw new UnauthorizedError("User not found", "USER_NOT_FOUND");
+  }
+
+  if (user.tokenVersion !== payload.tokenVersion) {
+    throw new UnauthorizedError("Token has been revoked", "TOKEN_REVOKED");
+  }
+
+  const roles = await userRepo.getUserRoles(user.id);
+  const accessToken = generateAccessToken(user.id, roles, user.tokenVersion, user.emailVerified);
+  const newRefreshToken = generateRefreshToken(
+    user.id,
+    session.id,
+    user.tokenVersion
   );
+
+  await sessionRepo.updateSessionTokenHash(
+    session.id,
+    hashToken(newRefreshToken),
+    getRefreshTokenExpiresAt()
+  );
+
+  return { accessToken, refreshToken: newRefreshToken };
 }
 
-/**
- * Request password reset
- * TODO: Implement password reset token logic
- */
-export async function requestPasswordReset(email: string): Promise<void> {
-  // TODO: Generate reset token and send email
-  throw new BadRequestError(
-    'NOT_IMPLEMENTED',
-    'Password reset not yet implemented'
-  );
+// ==========================================
+// LOGOUT
+// ==========================================
+
+export async function logout(refreshToken: string): Promise<void> {
+  let payload: RefreshTokenPayload;
+
+  try {
+    payload = jwt.verify(
+      refreshToken,
+      env.REFRESH_TOKEN_SECRET
+    ) as RefreshTokenPayload;
+  } catch {
+    throw new UnauthorizedError("Invalid refresh token", "INVALID_REFRESH_TOKEN");
+  }
+
+  const session = await sessionRepo.findSessionById(payload.sessionId);
+  if (!session) {
+    throw new UnauthorizedError("Session not found", "SESSION_NOT_FOUND");
+  }
+
+  await sessionRepo.revokeSession(session.id);
 }
 
-/**
- * Confirm password reset
- * TODO: Implement password reset token verification
- */
-export async function confirmPasswordReset(
-  token: string,
-  newPassword: string
-): Promise<void> {
-  // TODO: Verify token, hash new password, update user
-  throw new BadRequestError(
-    'NOT_IMPLEMENTED',
-    'Password reset not yet implemented'
-  );
+export async function logoutAll(userId: string): Promise<{ revokedCount: number }> {
+  await userRepo.incrementTokenVersion(userId);
+  const revokedCount = await sessionRepo.revokeAllUserSessions(userId);
+  return { revokedCount };
+}
+
+// ==========================================
+// GET CURRENT USER
+// ==========================================
+
+export async function getCurrentUser(userId: string): Promise<SafeUser> {
+  const user = await userRepo.findUserById(userId);
+  if (!user) {
+    throw new NotFoundError("User not found", "USER_NOT_FOUND");
+  }
+
+  return toSafeUser(user);
 }

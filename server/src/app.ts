@@ -1,144 +1,165 @@
-/**
- * Fastify Application Instance
- * Registers plugins, routes, and error handlers
- */
+import Fastify, { FastifyError, FastifyRequest, FastifyReply } from "fastify";
+import fastifyStatic from "@fastify/static";
+import helmet from "@fastify/helmet";
+import rateLimit from "@fastify/rate-limit";
+import fastifyCors from "@fastify/cors";
+import fastifyCookie from "@fastify/cookie";
+import fastifyCsrf from "@fastify/csrf-protection";
+import path from "path";
+import { fileURLToPath } from "url";
+import { logger } from "./libs/logger.js";
+import { AppError, RateLimitError } from "./libs/errors.js";
+import { errorResponse } from "./libs/response.js";
+import { env } from "./config/env.js";
+import { healthRoutes } from "./modules/health/health.routes.js";
+import { authRoutes } from "./modules/auth/auth.routes.js";
+import { userRoutes } from "./modules/users/user.routes.js";
+import { productRoutes } from "./modules/products/products.routes.js";
 
-import fastify, { FastifyInstance, FastifyError, FastifyRequest, FastifyReply, FastifyBaseLogger } from 'fastify';
-import cors from '@fastify/cors';
-import { CORS_ORIGIN, API_PREFIX, isDevelopment } from '@/config';
-import { logger } from '@/libs/logger';
-import { prisma } from '@/libs/prisma';
-import authPlugin from '@/plugins/auth';
-import rateLimitPlugin from '@/plugins/rate-limit';
-import { AppError } from '@/shared/errors/app-error';
-import { successResponse } from '@/shared/helpers/response';
-import { authRoutes } from '@/modules/auth';
-import { usersRoutes } from '@/modules/users';
-import { productsRoutes } from '@/modules/products';
-import { batchesRoutes } from '@/modules/batches';
-import { ordersRoutes } from '@/modules/orders';
-import { creditsRoutes } from '@/modules/credits';
-import { settingsRoutes } from '@/modules/settings';
-import { invoicesRoutes } from '@/modules/invoices';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-
-const buildApp = async (): Promise<FastifyInstance> => {
-  const app = fastify({
-    logger: logger as unknown as FastifyBaseLogger,
-    disableRequestLogging: false,
-    requestIdHeader: 'x-request-id',
-    requestIdLogLabel: 'requestId',
+function buildApp() {
+  const app = Fastify({
+    loggerInstance: logger,
   });
 
-  // CORS Plugin
-  await app.register(cors, {
-    origin: CORS_ORIGIN,
+  // CORS support
+  // In production: use CORS_ORIGINS env var (comma-separated list)
+  // In development: allow common dev ports
+  const allowedOrigins = env.NODE_ENV === "production" && env.CORS_ORIGINS
+    ? env.CORS_ORIGINS
+    : [
+        "http://localhost:3000",  // Next.js default
+        "http://localhost:3001",  // Alternative port
+        "http://localhost:5173",  // Vite default
+        "http://localhost:8000",  // Server port (for same-origin testing)
+      ];
+
+  app.register(fastifyCors, {
+    origin: (origin, callback) => {
+      // Handle requests with no origin header
+      if (!origin) {
+        // Allow requests without origin header in all environments
+        // This includes: direct browser navigation, curl, Postman, health checks
+        // Safe because we protect state-changing operations with CSRF tokens
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // In development, log rejected origins for debugging
+      if (env.NODE_ENV !== "production") {
+        logger.warn({ origin }, "CORS: Origin not allowed");
+      }
+
+      return callback(new Error("CORS: Origin not allowed"), false);
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-CSRF-Token'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
   });
 
-  // Rate Limiting Plugin
-  await app.register(rateLimitPlugin);
+  // Cookie support (required for CSRF protection)
+  app.register(fastifyCookie, {
+    secret: env.ACCESS_TOKEN_SECRET, // Use access token secret for cookie signing
+    parseOptions: {
+      httpOnly: true,
+      secure: env.NODE_ENV === "production",
+      sameSite: "strict",
+    },
+  });
 
-  // Authentication Plugin
-  await app.register(authPlugin);
+  // CSRF protection for state-changing requests
+  // Client must send X-CSRF-Token header with value from /api/v1/auth/csrf-token endpoint
+  app.register(fastifyCsrf, {
+    sessionPlugin: "@fastify/cookie",
+    cookieOpts: {
+      httpOnly: true,
+      secure: env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+    },
+    getToken: (request: FastifyRequest) => {
+      // Accept CSRF token from X-CSRF-Token header
+      return request.headers["x-csrf-token"] as string;
+    },
+  });
 
-  // Health Check Endpoint
-  app.get('/health', async (_request, reply) => {
-    try {
-      // Check database connection
-      await prisma.$queryRaw`SELECT 1`;
+  // Security headers with Helmet
+  app.register(helmet, {
+    // Minimal CSP for API server
+    // Even though APIs primarily return JSON, CSP provides defense-in-depth
+    // against XSS if any endpoint accidentally returns HTML
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'none'"],          // Block everything by default
+        frameAncestors: ["'none'"],      // Prevent clickjacking (X-Frame-Options replacement)
+        baseUri: ["'none'"],             // Prevent base tag injection
+        formAction: ["'none'"],          // Prevent form submissions (API doesn't serve forms)
+      },
+    },
+    crossOriginEmbedderPolicy: false, // API doesn't need this
+    crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow cross-origin resource loading
+  });
 
-      return reply.send(
-        successResponse('Service healthy', {
-          status: 'ok',
-          timestamp: new Date().toISOString(),
-          environment: isDevelopment() ? 'development' : 'production',
-        })
+  // Rate limiting plugin (configure per-route limits in route files)
+  app.register(rateLimit, {
+    global: false, // We apply limits per-route
+    max: 100, // Default fallback
+    timeWindow: "1 minute",
+    onExceeded: function (_request, _key) {
+      throw new RateLimitError(
+        "Too many requests. Please try again later."
       );
-    } catch (error) {
-      return reply.status(503).send({
-        success: false,
-        error: {
-          code: 'SERVICE_UNHEALTHY',
-          message: 'Database connection failed',
-        },
-      });
-    }
+    },
   });
 
-  // API Routes
-  await app.register(authRoutes, { prefix: `${API_PREFIX}/auth` });
-  await app.register(usersRoutes, { prefix: `${API_PREFIX}/users` });
-  await app.register(productsRoutes, { prefix: `${API_PREFIX}/products` });
-  await app.register(batchesRoutes, { prefix: `${API_PREFIX}/batches` });
-  await app.register(ordersRoutes, { prefix: `${API_PREFIX}/orders` });
-  await app.register(creditsRoutes, { prefix: `${API_PREFIX}/credits` });
-  await app.register(settingsRoutes, { prefix: `${API_PREFIX}/settings` });
-  await app.register(invoicesRoutes, { prefix: `${API_PREFIX}/invoices` });
-
-  // Global Error Handler
-  app.setErrorHandler((error: FastifyError, request, reply) => {
-    // Handle AppError instances
+  // Global error handler
+  app.setErrorHandler((error: FastifyError | AppError, request: FastifyRequest, reply: FastifyReply) => {
     if (error instanceof AppError) {
-      return reply.status(error.statusCode).send({
-        success: false,
-        error: {
-          code: error.code,
-          message: error.message,
-        },
-      });
+      logger.warn({ err: error, requestId: request.id }, error.message);
+      return reply.status(error.statusCode).send(errorResponse(error.code, error.message));
     }
 
-    // Handle Zod validation errors
-    if (error.name === 'ZodError') {
-      return reply.status(400).send({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid request data',
+    // Handle Fastify built-in errors with user-friendly messages
+    if ('code' in error && typeof error.code === 'string') {
+      const fastifyErrorMap: Record<string, { statusCode: number; message: string }> = {
+        FST_ERR_VALIDATION: {
+          statusCode: 400,
+          message: 'Invalid request data'
         },
-      });
+      };
+
+      const mappedError = fastifyErrorMap[error.code];
+      if (mappedError) {
+        logger.warn({ err: error, requestId: request.id }, mappedError.message);
+        return reply.status(mappedError.statusCode).send(errorResponse(error.code, mappedError.message));
+      }
     }
 
-    // Handle Fastify validation errors
-    if (error.validation) {
-      return reply.status(400).send({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: error.message || 'Invalid request data',
-        },
-      });
-    }
-
-    // Log unexpected errors
-    logger.error(
-      {
-        error: {
-          message: error.message,
-          stack: error.stack,
-          code: error.code,
-        },
-        requestId: request.id,
-        url: request.url,
-        method: request.method,
-      },
-      'Unhandled error'
-    );
-
-    // Generic error response (hide internals in production)
-    return reply.status(error.statusCode || 500).send({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: isDevelopment()
-          ? error.message
-          : 'An unexpected error occurred',
-      },
-    });
+    // Unexpected errors - log full details, return generic message
+    logger.error({ err: error, requestId: request.id }, "Unhandled error");
+    return reply.status(500).send(errorResponse("INTERNAL_ERROR", "An unexpected error occurred"));
   });
+
+  // Serve static files from uploads directory
+  app.register(fastifyStatic, {
+    root: path.join(__dirname, "..", "uploads"),
+    prefix: "/uploads/",
+    decorateReply: false,
+  });
+
+  // Register REST API routes
+  app.register(healthRoutes, { prefix: "/api/v1" });
+  app.register(authRoutes, { prefix: "/api/v1" });
+  app.register(userRoutes, { prefix: "/api/v1" });
+  app.register(productRoutes, { prefix: "/api/v1" });
 
   return app;
-};
+}
 
 export default buildApp;

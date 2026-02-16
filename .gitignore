@@ -1,6 +1,9 @@
 # Rule documentation (private)
 docs/rules/
 .claude/rules/
+.claude
+.agent
+
 
 # Dependencies
 node_modules

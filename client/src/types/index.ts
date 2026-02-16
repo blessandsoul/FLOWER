@@ -1,35 +1,41 @@
-export type Role = 'USER' | 'RESELLER' | 'OPERATOR' | 'LOGISTICS' | 'ACCOUNTANT' | 'ADMIN';
+// Two-role system matching server schema
+export type Role = 'USER' | 'ADMIN';
 
 export type User = {
     id: string;
     email: string;
     firstName: string;
     lastName: string;
-    role: Role;
-    balance: number;
-    isVip: boolean;
-    isReseller: boolean;
+    phoneNumber: string | null;
+    roles: Role[];              // Multi-role support via array
+    isActive: boolean;
     emailVerified: boolean;
-    phone?: string | null;
-    address?: string | null;
-    companyName?: string | null;
-    taxId?: string | null;
-    personalId?: string | null;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type PriceTier = {
+    minQuantity: number;
+    price: number;
 };
 
 export type Product = {
     id: string;
     name: string;
-    description?: string;
     photoUrl: string;
-    priceEur: number;
-    priceGel: number;
-    minBoxSize: number; // e.g., 20, 50, 100
-    totalAvailable: number; // Original quantity at auction
-    currentCollected: number; // How much users have already ordered in our system
+    price: number;        // Price in GEL
+    minBoxSize: number;   // Minimum order quantity (orderPer from server)
+    stock: number;        // Available stock
     color: string;
-    lengthCm: number;
     category: string;
+    grower?: string;
+    origin?: string;
+    priceTiers: PriceTier[];
+};
+
+export type ProductDetail = Product & {
+    images: string[];     // Array of full image URLs
+    tags: string[];       // All tag names
 };
 
 export type CartItem = {

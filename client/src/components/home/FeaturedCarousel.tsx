@@ -1,14 +1,33 @@
 'use client';
 
-import { MOCK_PRODUCTS } from '@/lib/mock-data';
+import { useState, useEffect, useRef } from 'react';
 import { ProductCard } from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { useRef } from 'react';
-import { toast } from 'sonner';
+import { productsApi } from '@/features/products/services/products.api';
+import { mapServerProductsToClient } from '@/features/products/utils/productMapper';
+import type { Product } from '@/types';
 
 export function FeaturedCarousel() {
     const scrollRef = useRef<HTMLDivElement>(null);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchProducts() {
+            try {
+                const response = await productsApi.getProducts({ limit: 10 });
+                const mapped = mapServerProductsToClient(response.data.items);
+                setProducts(mapped);
+            } catch (err) {
+                console.error('Failed to fetch featured products:', err);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchProducts();
+    }, []);
 
     const scroll = (direction: 'left' | 'right') => {
         if (scrollRef.current) {
@@ -41,14 +60,28 @@ export function FeaturedCarousel() {
                     className="flex gap-6 overflow-x-auto pb-12 snap-x snap-mandatory scrollbar-hide py-4 px-2"
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
-                    {MOCK_PRODUCTS.map((product) => (
-                        <div key={product.id} className="min-w-[280px] md:min-w-[320px] snap-center hover:-translate-y-2 transition-transform duration-300">
-                            <ProductCard
-                                product={product}
-                            // Logic is now internal to ProductCard 
-                            />
+                    {loading ? (
+                        Array.from({ length: 5 }).map((_, i) => (
+                            <div key={i} className="min-w-[280px] md:min-w-[320px] snap-center">
+                                <div className="space-y-3">
+                                    <Skeleton className="h-48 w-full rounded-lg" />
+                                    <Skeleton className="h-4 w-3/4" />
+                                    <Skeleton className="h-4 w-1/2" />
+                                    <Skeleton className="h-10 w-full" />
+                                </div>
+                            </div>
+                        ))
+                    ) : products.length > 0 ? (
+                        products.map((product) => (
+                            <div key={product.id} className="min-w-[280px] md:min-w-[320px] snap-center hover:-translate-y-2 transition-transform duration-300">
+                                <ProductCard product={product} />
+                            </div>
+                        ))
+                    ) : (
+                        <div className="w-full text-center py-12 text-muted-foreground">
+                            პროდუქტები არ მოიძებნა
                         </div>
-                    ))}
+                    )}
                 </div>
             </div>
         </section>

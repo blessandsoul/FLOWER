@@ -1,89 +1,164 @@
-/**
- * Products Module Types
- */
+import type { Decimal } from "@prisma/client/runtime/library";
 
-import type { ProductStatus, FlowerOrigin } from '@/config/constants';
+// ==========================================
+// Price Tier Types
+// ==========================================
 
-/**
- * Product public response
- */
-export interface ProductResponse {
-  id: string;
-  name: string;
-  nameFa: string | null; // Farsi name
-  description: string | null;
-  categoryId: string | null;
-  categoryName: string | null;
-  origin: FlowerOrigin;
-  stemLengthCm: number;
-  stemsPerBunch: number;
-  colorGroup: string | null;
-  imageUrl: string | null;
-  priceEur: string; // Base price in EUR
-  priceGel: string; // Customer price in GEL
-  availableQty: number; // Actual stock
-  displayQty: number; // Visible stock (after visibility %)
-  status: ProductStatus;
-  isActive: boolean;
-  createdAt: string;
+export interface PriceTierInput {
+  minQuantity: number;
+  price: number;
 }
 
-/**
- * Product list filters
- */
-export interface ProductListFilters {
-  categoryId?: string;
-  origin?: FlowerOrigin;
-  colorGroup?: string;
-  status?: ProductStatus;
-  isActive?: boolean;
+export interface PriceTier {
+  id: number;
+  minQuantity: number;
+  price: number;
+}
+
+// ==========================================
+// Lookup Table Types
+// ==========================================
+
+export interface Color {
+  id: number;
+  name: string;
+  createdAt: Date;
+}
+
+export interface Grower {
+  id: number;
+  name: string;
+  createdAt: Date;
+}
+
+export interface Origin {
+  id: number;
+  name: string;
+  createdAt: Date;
+}
+
+export interface Tag {
+  id: number;
+  name: string;
+  slug: string;
+  createdAt: Date;
+}
+
+// ==========================================
+// Product Types
+// ==========================================
+
+export interface ProductBase {
+  id: number;
+  name: string;
+  stock: number;
+  orderPer: number;
+  imageUrl: string | null;
+  imageFilename: string | null;
+  sourceScrapedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Product extends ProductBase {
+  colorId: number | null;
+  growerId: number | null;
+  originId: number | null;
+}
+
+export interface ProductWithRelations extends ProductBase {
+  color: { id: number; name: string } | null;
+  grower: { id: number; name: string } | null;
+  origin: { id: number; name: string } | null;
+  tags: { id: number; name: string; slug: string }[];
+  priceTiers: PriceTier[];
+}
+
+// ==========================================
+// Input Types
+// ==========================================
+
+export interface CreateProductInput {
+  name: string;
+  colorId?: number | null;
+  growerId?: number | null;
+  originId?: number | null;
+  stock?: number;
+  orderPer?: number;
+  imageUrl?: string | null;
+  imageFilename?: string | null;
+  sourceScrapedAt?: Date | null;
+  tagIds?: number[];
+  priceTiers?: PriceTierInput[];
+}
+
+export interface UpdateProductInput {
+  name?: string;
+  colorId?: number | null;
+  growerId?: number | null;
+  originId?: number | null;
+  stock?: number;
+  orderPer?: number;
+  imageUrl?: string | null;
+  imageFilename?: string | null;
+  sourceScrapedAt?: Date | null;
+  tagIds?: number[];
+  priceTiers?: PriceTierInput[];
+}
+
+// ==========================================
+// Filter Types
+// ==========================================
+
+export interface ProductFilters {
   search?: string;
+  colorId?: number;
+  growerId?: number;
+  originId?: number;
+  tagIds?: number[];
+  inStock?: boolean;
   minPrice?: number;
   maxPrice?: number;
-  inStock?: boolean;
 }
 
-/**
- * Create product request
- */
-export interface CreateProductRequest {
+// ==========================================
+// API Response Types
+// ==========================================
+
+export interface ProductListItem {
+  id: number;
   name: string;
-  nameFa?: string;
-  description?: string;
-  categoryId?: string;
-  origin: FlowerOrigin;
-  stemLengthCm: number;
-  stemsPerBunch: number;
-  colorGroup?: string;
-  imageUrl?: string;
-  priceEur: string;
-  markupPercentage?: number;
+  color: string | null;
+  grower: string | null;
+  origin: string | null;
+  stock: number;
+  orderPer: number;
+  imageFilename: string | null;
+  tags: string[];
+  priceFrom: number | null;
+  priceTiers: PriceTier[];
 }
 
-/**
- * Update product request
- */
-export interface UpdateProductRequest {
-  name?: string;
-  nameFa?: string;
-  description?: string;
-  categoryId?: string;
-  origin?: FlowerOrigin;
-  stemLengthCm?: number;
-  stemsPerBunch?: number;
-  colorGroup?: string;
-  imageUrl?: string;
-  priceEur?: string;
-  markupPercentage?: number;
-  status?: ProductStatus;
-  isActive?: boolean;
+export interface ProductImageItem {
+  id: number;
+  imageUrl: string | null;
+  imageFilename: string | null;
+  displayOrder: number;
 }
 
-/**
- * Stock adjustment request
- */
-export interface StockAdjustmentRequest {
-  productId: string;
-  quantity: number; // Positive to add, negative to remove
-  reason: string;
+export interface ProductDetail extends ProductListItem {
+  imageUrl: string | null;
+  sourceScrapedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  images: ProductImageItem[];
+}
+
+// ==========================================
+// Helper to convert Decimal to number
+// ==========================================
+
+export function decimalToNumber(decimal: Decimal | null): number | null {
+  if (decimal === null) return null;
+  return Number(decimal);
 }

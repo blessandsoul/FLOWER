@@ -1,77 +1,46 @@
-/**
- * Auth Module Types
- */
+import type { UserRole } from "@prisma/client";
 
-import type { UserRole } from '@/config/constants';
-
-/**
- * Login Request
- */
-export interface LoginRequest {
-  email: string;
-  password: string;
+export interface AccessTokenPayload {
+  userId: string;
+  roles: UserRole[];
+  tokenVersion: number;
+  emailVerified: boolean;
 }
 
-/**
- * Register Request
- */
-export interface RegisterRequest {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  role?: UserRole;
+export interface RefreshTokenPayload {
+  userId: string;
+  sessionId: string;
+  tokenVersion: number;
 }
 
-/**
- * Token Pair Response
- */
-export interface TokenPair {
+export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
 }
 
-/**
- * Auth Response (with user data)
- */
-export interface AuthResponse {
-  user: {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    role: UserRole;
-    balance: string; // Decimal as string
-    emailVerified: boolean;
-  };
-  tokens: TokenPair;
-}
-
-/**
- * Refresh Token Request
- */
-export interface RefreshTokenRequest {
-  refreshToken: string;
-}
-
-/**
- * Password Reset Request
- */
-export interface PasswordResetRequest {
+export interface SafeUser {
+  id: string;
   email: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string | null;
+  roles: UserRole[];
+  isActive: boolean;
+  emailVerified: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-/**
- * Password Reset Confirm Request
- */
-export interface PasswordResetConfirmRequest {
-  token: string;
-  newPassword: string;
+export interface AuthResponse {
+  user: SafeUser;
+  accessToken: string;
+  refreshToken: string;
+  warnings?: string[];
 }
 
-/**
- * Email Verification Request
- */
-export interface EmailVerificationRequest {
-  token: string;
+// JWT decoded user (used in auth middleware)
+export interface JwtUser {
+  id: string;
+  roles: UserRole[];
+  emailVerified: boolean;
 }

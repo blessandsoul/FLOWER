@@ -3,11 +3,12 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Flower2, LayoutDashboard, Menu, X } from 'lucide-react';
+import { Flower2, LayoutDashboard, Menu, X, LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CartSheet } from '@/components/CartSheet';
 import { cn } from '@/lib/cn';
 import { useState } from 'react';
+import { useAuth } from '@/hooks';
 
 const navItems = [
     { href: '/catalog', label: 'კატალოგი' },
@@ -19,6 +20,7 @@ const navItems = [
 export const Header = () => {
     const pathname = usePathname();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const { isAuthenticated, user } = useAuth();
 
     return (
         <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -46,25 +48,49 @@ export const Header = () => {
                 </div>
 
                 <div className="flex items-center space-x-4">
-                    <div className="hidden sm:flex flex-col items-end mr-2">
-                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">ბალანსი</span>
-                        <span className="text-sm font-bold text-green-600 font-mono">1,540.50 ₾</span>
-                    </div>
+                    {/* Balance - only show when logged in */}
+                    {isAuthenticated && (
+                        <div className="hidden sm:flex flex-col items-end mr-2">
+                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">ბალანსი</span>
+                            <span className="text-sm font-bold text-green-600 font-mono">1,540.50 ₾</span>
+                        </div>
+                    )}
 
-                    <CartSheet />
+                    {/* Cart - only show when logged in */}
+                    {isAuthenticated && <CartSheet />}
 
+                    {/* Auth buttons - Desktop */}
                     <div className="hidden md:flex items-center space-x-2">
-                        <Button asChild variant="ghost" size="sm">
-                            <Link href="/dashboard">
-                                <LayoutDashboard className="mr-2 h-4 w-4" />
-                                დაფა
-                            </Link>
-                        </Button>
-                        <Button asChild size="sm" className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90">
-                            <Link href="/dashboard">
-                                მართვა
-                            </Link>
-                        </Button>
+                        {isAuthenticated ? (
+                            <>
+                                <Button asChild variant="ghost" size="sm">
+                                    <Link href="/dashboard">
+                                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                                        დაფა
+                                    </Link>
+                                </Button>
+                                <Button asChild size="sm" className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90">
+                                    <Link href="/dashboard">
+                                        მართვა
+                                    </Link>
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <Button asChild variant="ghost" size="sm">
+                                    <Link href="/login">
+                                        <LogIn className="mr-2 h-4 w-4" />
+                                        შესვლა
+                                    </Link>
+                                </Button>
+                                <Button asChild size="sm" className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90">
+                                    <Link href="/register">
+                                        <UserPlus className="mr-2 h-4 w-4" />
+                                        რეგისტრაცია
+                                    </Link>
+                                </Button>
+                            </>
+                        )}
                     </div>
 
                     {/* Mobile Menu Button */}
@@ -97,16 +123,35 @@ export const Header = () => {
                             </Link>
                         ))}
                         <hr className="my-2" />
-                        <div className="flex items-center justify-between py-2">
-                            <span className="text-sm font-medium text-muted-foreground">ბალანსი</span>
-                            <span className="text-sm font-bold text-green-600 font-mono">1,540.50 ₾</span>
-                        </div>
-                        <Button asChild className="w-full">
-                            <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
-                                <LayoutDashboard className="mr-2 h-4 w-4" />
-                                მართვა
-                            </Link>
-                        </Button>
+                        {isAuthenticated ? (
+                            <>
+                                <div className="flex items-center justify-between py-2">
+                                    <span className="text-sm font-medium text-muted-foreground">ბალანსი</span>
+                                    <span className="text-sm font-bold text-green-600 font-mono">1,540.50 ₾</span>
+                                </div>
+                                <Button asChild className="w-full">
+                                    <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
+                                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                                        მართვა
+                                    </Link>
+                                </Button>
+                            </>
+                        ) : (
+                            <div className="flex flex-col space-y-2">
+                                <Button asChild variant="outline" className="w-full">
+                                    <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                                        <LogIn className="mr-2 h-4 w-4" />
+                                        შესვლა
+                                    </Link>
+                                </Button>
+                                <Button asChild className="w-full">
+                                    <Link href="/register" onClick={() => setIsMobileMenuOpen(false)}>
+                                        <UserPlus className="mr-2 h-4 w-4" />
+                                        რეგისტრაცია
+                                    </Link>
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

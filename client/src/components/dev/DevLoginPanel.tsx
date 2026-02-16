@@ -1,11 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { useAppDispatch } from '@/store/hooks';
-import { setCredentials } from '@/features/auth/store/authSlice';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+import { useAuth } from '@/hooks';
+import { authApi } from '@/features/auth/services/auth.api';
 
 interface TestAccount {
   email: string;
@@ -13,7 +10,6 @@ interface TestAccount {
   role: string;
   label: string;
   color: string;
-  balance?: string;
 }
 
 const TEST_ACCOUNTS: TestAccount[] = [
@@ -25,54 +21,16 @@ const TEST_ACCOUNTS: TestAccount[] = [
     color: 'bg-red-500 hover:bg-red-600',
   },
   {
-    email: 'operator@florca.ge',
-    password: 'password123',
-    role: 'OPERATOR',
-    label: 'Operator',
-    color: 'bg-orange-500 hover:bg-orange-600',
-  },
-  {
-    email: 'logistics@florca.ge',
-    password: 'password123',
-    role: 'LOGISTICS',
-    label: 'Logistics',
-    color: 'bg-yellow-500 hover:bg-yellow-600 text-black',
-  },
-  {
-    email: 'accountant@florca.ge',
-    password: 'password123',
-    role: 'ACCOUNTANT',
-    label: 'Accountant',
-    color: 'bg-purple-500 hover:bg-purple-600',
-  },
-  {
     email: 'user@example.com',
     password: 'password123',
     role: 'USER',
     label: 'User',
     color: 'bg-blue-500 hover:bg-blue-600',
-    balance: '150 GEL',
-  },
-  {
-    email: 'reseller@example.com',
-    password: 'password123',
-    role: 'RESELLER',
-    label: 'Reseller',
-    color: 'bg-green-500 hover:bg-green-600',
-    balance: '500 GEL',
-  },
-  {
-    email: 'vip@example.com',
-    password: 'password123',
-    role: 'USER',
-    label: 'VIP User',
-    color: 'bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-600 hover:to-yellow-500 text-black',
-    balance: '1000 GEL',
   },
 ];
 
 export function DevLoginPanel() {
-  const dispatch = useAppDispatch();
+  const { login } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,34 +45,13 @@ export function DevLoginPanel() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: account.email,
-          password: account.password,
-        }),
+      // Use real auth API - server sets httpOnly cookies automatically
+      const response = await authApi.login({
+        email: account.email,
+        password: account.password,
       });
 
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error?.message || 'Login failed');
-      }
-
-      dispatch(
-        setCredentials({
-          user: data.data.user,
-          tokens: data.data.tokens,
-        })
-      );
-
-      // Store tokens in localStorage
-      localStorage.setItem('accessToken', data.data.tokens.accessToken);
-      localStorage.setItem('refreshToken', data.data.tokens.refreshToken);
-
+      login(response.user);
       setIsOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
@@ -203,11 +140,6 @@ export function DevLoginPanel() {
                   <span className="text-xs opacity-80">{account.role}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {account.balance && (
-                    <span className="text-xs bg-white/20 px-2 py-1 rounded">
-                      {account.balance}
-                    </span>
-                  )}
                   {loading === account.email && (
                     <svg
                       className="animate-spin h-4 w-4"
