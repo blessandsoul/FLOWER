@@ -39,6 +39,7 @@ function toProductListItem(product: ProductWithRelations): ProductListItem {
     origin: product.origin?.name ?? null,
     stock: adjustStock(product.stock),
     orderPer: product.orderPer,
+    imageUrl: product.imageUrl,
     imageFilename: product.imageFilename,
     tags: product.tags.map((t) => t.name),
     priceFrom,
