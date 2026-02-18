@@ -1,5 +1,6 @@
 import * as argon2 from "argon2";
 import * as userRepo from "./user.repo.js";
+import * as walletRepo from "../wallet/wallet.repo.js";
 import type { SafeUser, User } from "./user.types.js";
 import type {
   CreateUserInput,
@@ -40,6 +41,9 @@ export async function createUser(input: CreateUserInput): Promise<SafeUser> {
     lastName: input.lastName,
     role: input.role,
   });
+
+  // Create wallet for the new user
+  await walletRepo.createWallet(user.id);
 
   return toSafeUser(user);
 }

@@ -9,6 +9,7 @@ import { CartSheet } from '@/components/CartSheet';
 import { cn } from '@/lib/cn';
 import { useState } from 'react';
 import { useAuth } from '@/hooks';
+import { WalletBadge } from '@/features/wallet/components/WalletBadge';
 
 const navItems = [
     { href: '/catalog', label: 'კატალოგი' },
@@ -49,12 +50,7 @@ export const Header = () => {
 
                 <div className="flex items-center space-x-4">
                     {/* Balance - only show when logged in */}
-                    {isAuthenticated && (
-                        <div className="hidden sm:flex flex-col items-end mr-2">
-                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">ბალანსი</span>
-                            <span className="text-sm font-bold text-green-600 font-mono">1,540.50 ₾</span>
-                        </div>
-                    )}
+                    {isAuthenticated && <WalletBadge className="hidden sm:flex mr-2" />}
 
                     {/* Cart - only show when logged in */}
                     {isAuthenticated && <CartSheet />}
@@ -126,8 +122,7 @@ export const Header = () => {
                         {isAuthenticated ? (
                             <>
                                 <div className="flex items-center justify-between py-2">
-                                    <span className="text-sm font-medium text-muted-foreground">ბალანსი</span>
-                                    <span className="text-sm font-bold text-green-600 font-mono">1,540.50 ₾</span>
+                                    <WalletBadge className="flex w-full flex-row items-center justify-between" />
                                 </div>
                                 <Button asChild className="w-full">
                                     <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>

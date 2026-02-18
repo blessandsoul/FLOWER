@@ -21,6 +21,29 @@ enum UserRole {
   ADMIN // Platform administrators
 }
 
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  PURCHASE
+  REFUND
+  ADJUSTMENT
+}
+
+enum PaymentOrderStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum OrderStatus {
+  PENDING
+  APPROVED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
 // ==========================================
 // USER & AUTHENTICATION
 // ==========================================
@@ -56,6 +79,16 @@ model User {
 
   // Sessions
   sessions UserSession[]
+
+  // Wallet
+  wallet              Wallet?
+  walletTransactions  WalletTransaction[] @relation("WalletTransactionCreator")
+
+  // Payment orders
+  paymentOrders PaymentOrder[]
+
+  // Orders
+  orders Order[]
 
   @@index([email])
   @@index([isActive])
@@ -175,6 +208,7 @@ model Product {
   tags            ProductTag[]
   priceTiers      PriceTier[]
   images          ProductImage[]
+  orderItems      OrderItem[]
 
   @@unique([name, growerId])
   @@index([name(length: 100)])
@@ -224,4 +258,110 @@ model ProductImage {
 
   @@index([productId])
   @@map("product_images")
+}
+
+// ==========================================
+// WALLET & TRANSACTIONS
+// ==========================================
+
+model Wallet {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  balance   Decimal  @default(0.00) @db.Decimal(12, 2)
+  currency  String   @default("USD") @db.VarChar(3)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@index([userId])
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id            String          @id @default(uuid())
+  walletId      String          @map("wallet_id")
+  type          TransactionType
+  amount        Decimal         @db.Decimal(12, 2)
+  balanceBefore Decimal         @map("balance_before") @db.Decimal(12, 2)
+  balanceAfter  Decimal         @map("balance_after") @db.Decimal(12, 2)
+  description   String?         @db.VarChar(500)
+  referenceId   String?         @map("reference_id") @db.VarChar(255)
+  createdById   String?         @map("created_by_id")
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  wallet    Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  createdBy User?  @relation("WalletTransactionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([walletId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("wallet_transactions")
+}
+
+// ==========================================
+// PAYMENT ORDERS (BOG integration)
+// ==========================================
+
+model PaymentOrder {
+  id              String             @id @default(uuid())
+  userId          String             @map("user_id")
+  bogOrderId      String?            @unique @map("bog_order_id") @db.VarChar(255)
+  amount          Decimal            @db.Decimal(12, 2)
+  currency        String             @default("GEL") @db.VarChar(3)
+  status          PaymentOrderStatus @default(PENDING)
+  callbackPayload Json?              @map("callback_payload")
+  redirectUrl     String?            @map("redirect_url") @db.VarChar(500)
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([bogOrderId])
+  @@map("payment_orders")
+}
+
+// ==========================================
+// ORDERS
+// ==========================================
+
+model Order {
+  id          String      @id @default(uuid())
+  userId      String      @map("user_id")
+  orderNumber String      @unique @map("order_number") @db.VarChar(20)
+  status      OrderStatus @default(PENDING)
+  subtotal    Decimal     @db.Decimal(10, 2)
+  serviceFee  Decimal     @map("service_fee") @db.Decimal(10, 2)
+  totalAmount Decimal     @map("total_amount") @db.Decimal(10, 2)
+  notes       String?     @db.VarChar(500)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String  @id @default(uuid())
+  orderId     String  @map("order_id")
+  productId   Int     @map("product_id") @db.UnsignedInt
+  productName String  @map("product_name") @db.VarChar(500)
+  quantity    Int     @db.UnsignedInt
+  unitPrice   Decimal @map("unit_price") @db.Decimal(10, 2)
+  totalPrice  Decimal @map("total_price") @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
 }

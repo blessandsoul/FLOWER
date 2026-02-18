@@ -11,6 +11,7 @@ import { logger } from "../../libs/logger.js";
 import * as userRepo from "../users/user.repo.js";
 import * as sessionRepo from "./session.repo.js";
 import * as securityService from "./security.service.js";
+import * as walletRepo from "../wallet/wallet.repo.js";
 import type { SafeUser, User, UserRole } from "../users/user.types.js";
 import type {
   AccessTokenPayload,
@@ -156,6 +157,9 @@ export async function register(
     lastName: input.lastName,
     role: "USER",
   });
+
+  // Create wallet for the new user
+  await walletRepo.createWallet(user.id);
 
   // Send verification email with proper error handling
   const warnings: string[] = [];

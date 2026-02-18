@@ -42,6 +42,20 @@ const envSchema = z.object({
   REDIS_HOST: z.string().default("localhost"),
   REDIS_PORT: z.coerce.number().int().positive().default(6381),
   REDIS_PASSWORD: z.string().optional(),
+
+  // Wallet
+  WALLET_CURRENCY: z.string().length(3).default("USD"),
+
+  // BOG Payment Gateway
+  BOG_CLIENT_ID: z.string().default("test"),
+  BOG_SECRET_KEY: z.string().default("test"),
+  BOG_BASE_URL: z.string().url().default("http://localhost:4001"),
+  BOG_CALLBACK_URL: z.string().url().default("http://localhost:8000/api/v1/payment/bog/callback"),
+  BOG_SUCCESS_REDIRECT_URL: z.string().url().default("http://localhost:3000/wallet?payment=success"),
+  BOG_FAIL_REDIRECT_URL: z.string().url().default("http://localhost:3000/wallet?payment=failed"),
+  BOG_PAYMENT_CURRENCY: z.enum(["GEL", "USD", "EUR", "GBP"]).default("GEL"),
+  BOG_MOCK_ENABLED: z.coerce.boolean().default(true),
+  BOG_MOCK_PORT: z.coerce.number().int().positive().default(4001),
 });
 
 const parsed = envSchema.safeParse(process.env);

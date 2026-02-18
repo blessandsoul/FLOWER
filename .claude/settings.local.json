@@ -36,7 +36,16 @@
       "Bash(do ls \"c:\\\\Users\\\\seed\\\\Documents\\\\GitHub\\\\FLOWER\\\\server\\\\uploads$f\")",
       "Bash(echo:*)",
       "Bash(done)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "WebFetch(domain:api.bog.ge)",
+      "Bash(npx next build)",
+      "Bash(CSRF=\"R4me80Do-c4d79zznBsUxnYJMBXq4QOByisnPAT4XTXnZ0tM2dIY\")",
+      "mcp__plugin_playwright_playwright__browser_run_code",
+      "Bash(docker compose up:*)",
+      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"yes\" npx prisma migrate reset:*)",
+      "Bash(wmic process:*)",
+      "Bash(1:*)",
+      "Bash(powershell -Command \"Get-Process -Name ''node'' -ErrorAction SilentlyContinue | Select-Object Id, ProcessName\")"
     ]
   }
 }

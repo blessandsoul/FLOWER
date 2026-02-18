@@ -15,6 +15,9 @@ import { healthRoutes } from "./modules/health/health.routes.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
 import { userRoutes } from "./modules/users/user.routes.js";
 import { productRoutes } from "./modules/products/products.routes.js";
+import { walletRoutes } from "./modules/wallet/wallet.routes.js";
+import { paymentRoutes } from "./modules/payment/payment.routes.js";
+import { orderRoutes } from "./modules/orders/order.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -158,6 +161,9 @@ function buildApp() {
   app.register(authRoutes, { prefix: "/api/v1" });
   app.register(userRoutes, { prefix: "/api/v1" });
   app.register(productRoutes, { prefix: "/api/v1" });
+  app.register(walletRoutes, { prefix: "/api/v1" });
+  app.register(paymentRoutes, { prefix: "/api/v1" });
+  app.register(orderRoutes, { prefix: "/api/v1" });
 
   return app;
 }

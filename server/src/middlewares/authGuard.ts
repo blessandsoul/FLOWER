@@ -14,6 +14,7 @@ declare module "fastify" {
 
 /**
  * Verifies JWT access token and attaches user to request.
+ * Accepts token from Authorization header (Bearer) or httpOnly accessToken cookie.
  * Also checks tokenVersion against database to ensure immediate invalidation
  * after password reset or logout-all operations.
  * Use as preHandler for protected routes.
@@ -23,17 +24,23 @@ export async function authGuard(
   _reply: FastifyReply
 ): Promise<void> {
   const authHeader = request.headers.authorization;
+  const cookieToken = request.cookies?.accessToken;
 
-  if (!authHeader) {
+  if (!authHeader && !cookieToken) {
     throw new UnauthorizedError("Authorization header missing", "NO_AUTH_HEADER");
   }
 
-  const parts = authHeader.split(" ");
-  if (parts.length !== 2 || parts[0] !== "Bearer") {
-    throw new UnauthorizedError("Invalid authorization format", "INVALID_AUTH_FORMAT");
-  }
+  let token: string;
 
-  const token = parts[1];
+  if (authHeader) {
+    const parts = authHeader.split(" ");
+    if (parts.length !== 2 || parts[0] !== "Bearer") {
+      throw new UnauthorizedError("Invalid authorization format", "INVALID_AUTH_FORMAT");
+    }
+    token = parts[1];
+  } else {
+    token = cookieToken!;
+  }
 
   try {
     const payload = jwt.verify(token, env.ACCESS_TOKEN_SECRET) as AccessTokenPayload;

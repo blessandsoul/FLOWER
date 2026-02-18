@@ -4,20 +4,43 @@ import { useState, useEffect } from 'react';
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, Trash2, Plus, Minus } from 'lucide-react';
+import { ShoppingCart, Trash2, Plus, Minus, Loader2 } from 'lucide-react';
 import { useCart } from '@/store/useCart';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
+import { usePlaceOrder } from '@/features/orders/hooks';
+import { useRouter } from 'next/navigation';
 
 export function CartSheet() {
-    const { items, removeItem, updateQuantity, totalPrice, totalItems } = useCart();
+    const { items, removeItem, updateQuantity, clearCart, totalPrice, totalItems } = useCart();
+    const placeOrder = usePlaceOrder();
+    const router = useRouter();
 
     const [mounted, setMounted] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    const handlePlaceOrder = () => {
+        placeOrder.mutate(
+            {
+                items: items.map((item) => ({
+                    productId: Number(item.id),
+                    quantity: item.quantity,
+                })),
+            },
+            {
+                onSuccess: () => {
+                    clearCart();
+                    setIsOpen(false);
+                    router.push('/orders');
+                },
+            }
+        );
+    };
 
     if (!mounted) {
         return (
@@ -29,7 +52,7 @@ export function CartSheet() {
     }
 
     return (
-        <Sheet>
+        <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild>
                 <Button variant="outline" size="icon" className="relative overflow-visible h-10 w-10 rounded-full border-border/60 hover:bg-accent hover:text-accent-foreground transition-all duration-300 group">
                     <ShoppingCart className="h-5 w-5 group-hover:scale-110 transition-transform" />
@@ -125,7 +148,26 @@ export function CartSheet() {
                             <span>სულ გადასახდელი</span>
                             <span className="text-primary">{(totalPrice() * 1.05).toFixed(2)} ₾</span>
                         </div>
-                        <Button className="w-full" size="lg">შეკვეთის გაფორმება</Button>
+                        <Button
+                            className="w-full"
+                            size="lg"
+                            disabled={placeOrder.isPending}
+                            onClick={handlePlaceOrder}
+                        >
+                            {placeOrder.isPending ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    იტვირთება...
+                                </>
+                            ) : (
+                                'შეკვეთის გაფორმება'
+                            )}
+                        </Button>
+                        {placeOrder.isError && (
+                            <p className="text-sm text-destructive text-center">
+                                {placeOrder.error?.message || 'შეკვეთის გაფორმება ვერ მოხერხდა'}
+                            </p>
+                        )}
                     </div>
                 )}
             </SheetContent>

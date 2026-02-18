@@ -4,6 +4,7 @@ import { logger } from "./libs/logger.js";
 import { connectRedis, disconnectRedis, isRedisConnected } from "./libs/redis.js";
 import { testDatabaseConnection } from "./libs/prisma.js";
 import buildApp from "./app.js";
+import { startMockBogServer } from "./mock/bog-mock.js";
 
 const app = buildApp();
 
@@ -23,6 +24,11 @@ async function start(): Promise<void> {
     redisAvailable = await connectRedis();
     if (!redisAvailable) {
       logger.warn("Redis unavailable - caching, rate limiting, and real-time features disabled");
+    }
+
+    // Start mock BOG server if enabled (development only)
+    if (env.BOG_MOCK_ENABLED) {
+      await startMockBogServer();
     }
 
     // Start Fastify server (this should always succeed if port is available)

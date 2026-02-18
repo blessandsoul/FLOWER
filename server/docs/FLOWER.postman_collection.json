@@ -1,0 +1,1004 @@
+{
+	"info": {
+		"name": "FLOWER API",
+		"description": "Complete API collection for the FLOWER server.\n\n**Setup order:**\n1. Run \"Get CSRF Token\" first\n2. Run \"Register\" or \"Login\" to get auth tokens\n3. All other requests auto-use the stored tokens\n\nTokens and IDs are auto-extracted by test scripts and stored as collection variables.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{ "key": "baseUrl", "value": "http://localhost:8000/api/v1" },
+		{ "key": "csrfToken", "value": "" },
+		{ "key": "accessToken", "value": "" },
+		{ "key": "refreshToken", "value": "" },
+		{ "key": "userId", "value": "" },
+		{ "key": "testEmail", "value": "test@flower.com" },
+		{ "key": "testPassword", "value": "TestPass123" },
+		{ "key": "adminEmail", "value": "admin@flower.com" },
+		{ "key": "adminPassword", "value": "AdminPass123" },
+		{ "key": "productId", "value": "1" },
+		{ "key": "colorId", "value": "1" },
+		{ "key": "growerId", "value": "1" },
+		{ "key": "originId", "value": "1" },
+		{ "key": "tagId", "value": "1" },
+		{ "key": "paymentOrderId", "value": "" },
+		{ "key": "bogMockUrl", "value": "http://localhost:4001" }
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Collection-level pre-request: auto-fetch CSRF token for state-changing requests",
+					"const method = pm.request.method;",
+					"if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {",
+					"    const csrfToken = pm.collectionVariables.get('csrfToken');",
+					"    if (!csrfToken) {",
+					"        const baseUrl = pm.collectionVariables.get('baseUrl');",
+					"        pm.sendRequest({",
+					"            url: baseUrl + '/auth/csrf-token',",
+					"            method: 'GET'",
+					"        }, function (err, res) {",
+					"            if (!err && res.code === 200) {",
+					"                const body = res.json();",
+					"                if (body.data && body.data.csrfToken) {",
+					"                    pm.collectionVariables.set('csrfToken', body.data.csrfToken);",
+					"                }",
+					"            }",
+					"        });",
+					"    }",
+					"}"
+				]
+			}
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{ "key": "token", "value": "{{accessToken}}", "type": "string" }
+		]
+	},
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] },
+						"auth": { "type": "noauth" }
+					}
+				},
+				{
+					"name": "Detailed Health",
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/health/detailed", "host": ["{{baseUrl}}"], "path": ["health", "detailed"] },
+						"auth": { "type": "noauth" }
+					}
+				},
+				{
+					"name": "Metrics",
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/health/metrics", "host": ["{{baseUrl}}"], "path": ["health", "metrics"] },
+						"auth": { "type": "noauth" }
+					}
+				},
+				{
+					"name": "Readiness",
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/health/ready", "host": ["{{baseUrl}}"], "path": ["health", "ready"] },
+						"auth": { "type": "noauth" }
+					}
+				},
+				{
+					"name": "Liveness",
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/health/live", "host": ["{{baseUrl}}"], "path": ["health", "live"] },
+						"auth": { "type": "noauth" }
+					}
+				}
+			]
+		},
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Get CSRF Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const res = pm.response.json();",
+									"if (res.data && res.data.csrfToken) {",
+									"    pm.collectionVariables.set('csrfToken', res.data.csrfToken);",
+									"    pm.test('CSRF token saved', () => pm.expect(res.data.csrfToken).to.be.a('string'));",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/auth/csrf-token", "host": ["{{baseUrl}}"], "path": ["auth", "csrf-token"] },
+						"auth": { "type": "noauth" }
+					}
+				},
+				{
+					"name": "Register",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Extract tokens from Set-Cookie headers",
+									"const cookies = pm.response.headers.filter(h => h.key === 'Set-Cookie');",
+									"cookies.forEach(function(cookie) {",
+									"    const val = cookie.value;",
+									"    if (val.startsWith('accessToken=')) {",
+									"        pm.collectionVariables.set('accessToken', val.split('accessToken=')[1].split(';')[0]);",
+									"    }",
+									"    if (val.startsWith('refreshToken=')) {",
+									"        pm.collectionVariables.set('refreshToken', val.split('refreshToken=')[1].split(';')[0]);",
+									"    }",
+									"});",
+									"",
+									"const res = pm.response.json();",
+									"if (res.data && res.data.user) {",
+									"    pm.collectionVariables.set('userId', res.data.user.id);",
+									"    pm.test('User ID saved', () => pm.expect(res.data.user.id).to.be.a('string'));",
+									"}",
+									"pm.test('Status 201', () => pm.response.to.have.status(201));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+						"auth": { "type": "noauth" },
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{testEmail}}\",\n    \"password\": \"{{testPassword}}\",\n    \"firstName\": \"Test\",\n    \"lastName\": \"User\"\n}"
+						}
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const cookies = pm.response.headers.filter(h => h.key === 'Set-Cookie');",
+									"cookies.forEach(function(cookie) {",
+									"    const val = cookie.value;",
+									"    if (val.startsWith('accessToken=')) {",
+									"        pm.collectionVariables.set('accessToken', val.split('accessToken=')[1].split(';')[0]);",
+									"    }",
+									"    if (val.startsWith('refreshToken=')) {",
+									"        pm.collectionVariables.set('refreshToken', val.split('refreshToken=')[1].split(';')[0]);",
+									"    }",
+									"});",
+									"",
+									"const res = pm.response.json();",
+									"if (res.data && res.data.user) {",
+									"    pm.collectionVariables.set('userId', res.data.user.id);",
+									"}",
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.test('Has user data', () => pm.expect(res.data.user).to.have.property('id'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+						"auth": { "type": "noauth" },
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{testEmail}}\",\n    \"password\": \"{{testPassword}}\"\n}"
+						}
+					}
+				},
+				{
+					"name": "Login (Admin)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const cookies = pm.response.headers.filter(h => h.key === 'Set-Cookie');",
+									"cookies.forEach(function(cookie) {",
+									"    const val = cookie.value;",
+									"    if (val.startsWith('accessToken=')) {",
+									"        pm.collectionVariables.set('accessToken', val.split('accessToken=')[1].split(';')[0]);",
+									"    }",
+									"    if (val.startsWith('refreshToken=')) {",
+									"        pm.collectionVariables.set('refreshToken', val.split('refreshToken=')[1].split(';')[0]);",
+									"    }",
+									"});",
+									"",
+									"const res = pm.response.json();",
+									"if (res.data && res.data.user) {",
+									"    pm.collectionVariables.set('userId', res.data.user.id);",
+									"}",
+									"pm.test('Status 200', () => pm.response.to.have.status(200));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+						"auth": { "type": "noauth" },
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{adminEmail}}\",\n    \"password\": \"{{adminPassword}}\"\n}"
+						}
+					}
+				},
+				{
+					"name": "Me (Current User)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"const res = pm.response.json();",
+									"pm.test('Has user ID', () => pm.expect(res.data).to.have.property('id'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] }
+					}
+				},
+				{
+					"name": "Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const cookies = pm.response.headers.filter(h => h.key === 'Set-Cookie');",
+									"cookies.forEach(function(cookie) {",
+									"    const val = cookie.value;",
+									"    if (val.startsWith('accessToken=')) {",
+									"        pm.collectionVariables.set('accessToken', val.split('accessToken=')[1].split(';')[0]);",
+									"    }",
+									"    if (val.startsWith('refreshToken=')) {",
+									"        pm.collectionVariables.set('refreshToken', val.split('refreshToken=')[1].split(';')[0]);",
+									"    }",
+									"});",
+									"pm.test('Status 200', () => pm.response.to.have.status(200));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"url": { "raw": "{{baseUrl}}/auth/refresh", "host": ["{{baseUrl}}"], "path": ["auth", "refresh"] },
+						"header": [
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" },
+							{ "key": "Cookie", "value": "refreshToken={{refreshToken}}" }
+						]
+					}
+				},
+				{
+					"name": "Logout",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status 200', () => pm.response.to.have.status(200));",
+									"pm.collectionVariables.set('accessToken', '');",
+									"pm.collectionVariables.set('refreshToken', '');"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth", "logout"] },
+						"auth": { "type": "noauth" },
+						"header": [
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" },
+							{ "key": "Cookie", "value": "refreshToken={{refreshToken}}" }
+						]
+					}
+				},
+				{
+					"name": "Logout All Devices",
+					"request": {
+						"method": "POST",
+						"url": { "raw": "{{baseUrl}}/auth/logout-all", "host": ["{{baseUrl}}"], "path": ["auth", "logout-all"] },
+						"header": [
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						]
+					}
+				},
+				{
+					"name": "Verify Email",
+					"request": {
+						"method": "POST",
+						"url": { "raw": "{{baseUrl}}/auth/verify-email", "host": ["{{baseUrl}}"], "path": ["auth", "verify-email"] },
+						"auth": { "type": "noauth" },
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"paste-verification-token-here\"\n}"
+						}
+					}
+				},
+				{
+					"name": "Resend Verification",
+					"request": {
+						"method": "POST",
+						"url": { "raw": "{{baseUrl}}/auth/resend-verification", "host": ["{{baseUrl}}"], "path": ["auth", "resend-verification"] },
+						"auth": { "type": "noauth" },
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{testEmail}}\"\n}"
+						}
+					}
+				},
+				{
+					"name": "Forgot Password",
+					"request": {
+						"method": "POST",
+						"url": { "raw": "{{baseUrl}}/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["auth", "forgot-password"] },
+						"auth": { "type": "noauth" },
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{testEmail}}\"\n}"
+						}
+					}
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"method": "POST",
+						"url": { "raw": "{{baseUrl}}/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["auth", "reset-password"] },
+						"auth": { "type": "noauth" },
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"paste-reset-token-here\",\n    \"newPassword\": \"NewTestPass123\"\n}"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "List All Users (Admin)",
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] }
+					}
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["users", "{{userId}}"] }
+					}
+				},
+				{
+					"name": "Create User (Admin)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const res = pm.response.json();",
+									"if (res.data && res.data.id) {",
+									"    pm.collectionVariables.set('userId', res.data.id);",
+									"}",
+									"pm.test('Status 201', () => pm.response.to.have.status(201));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] },
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"newuser@flower.com\",\n    \"password\": \"NewUser123\",\n    \"firstName\": \"New\",\n    \"lastName\": \"User\",\n    \"role\": \"USER\"\n}"
+						}
+					}
+				},
+				{
+					"name": "Update User (Self or Admin)",
+					"request": {
+						"method": "PATCH",
+						"url": { "raw": "{{baseUrl}}/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["users", "{{userId}}"] },
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"firstName\": \"Updated\",\n    \"lastName\": \"Name\",\n    \"phoneNumber\": \"+995555123456\"\n}"
+						}
+					}
+				},
+				{
+					"name": "Update User Role (Admin)",
+					"request": {
+						"method": "PATCH",
+						"url": { "raw": "{{baseUrl}}/users/{{userId}}/role", "host": ["{{baseUrl}}"], "path": ["users", "{{userId}}", "role"] },
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"role\": \"ADMIN\"\n}"
+						}
+					}
+				},
+				{
+					"name": "Remove User Role (Admin)",
+					"request": {
+						"method": "DELETE",
+						"url": { "raw": "{{baseUrl}}/users/{{userId}}/roles/USER", "host": ["{{baseUrl}}"], "path": ["users", "{{userId}}", "roles", "USER"] },
+						"header": [
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						]
+					}
+				},
+				{
+					"name": "Unlock User Account (Admin)",
+					"request": {
+						"method": "POST",
+						"url": { "raw": "{{baseUrl}}/users/{{userId}}/unlock", "host": ["{{baseUrl}}"], "path": ["users", "{{userId}}", "unlock"] },
+						"header": [
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						]
+					}
+				},
+				{
+					"name": "Restore Deleted User (Admin)",
+					"request": {
+						"method": "POST",
+						"url": { "raw": "{{baseUrl}}/users/{{userId}}/restore", "host": ["{{baseUrl}}"], "path": ["users", "{{userId}}", "restore"] },
+						"header": [
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						]
+					}
+				},
+				{
+					"name": "Delete User (Self or Admin)",
+					"request": {
+						"method": "DELETE",
+						"url": { "raw": "{{baseUrl}}/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["users", "{{userId}}"] },
+						"header": [
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Products",
+			"item": [
+				{
+					"name": "List Products (with filters)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/products?page=1&limit=20&search=&colorId=&growerId=&originId=&tagIds=&inStock=&minPrice=&maxPrice=",
+							"host": ["{{baseUrl}}"],
+							"path": ["products"],
+							"query": [
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "20" },
+								{ "key": "search", "value": "", "description": "Text search" },
+								{ "key": "colorId", "value": "", "description": "Filter by color ID", "disabled": true },
+								{ "key": "growerId", "value": "", "description": "Filter by grower ID", "disabled": true },
+								{ "key": "originId", "value": "", "description": "Filter by origin ID", "disabled": true },
+								{ "key": "tagIds", "value": "", "description": "Comma-separated tag IDs (e.g. 1,2,3)", "disabled": true },
+								{ "key": "inStock", "value": "true", "description": "Only in-stock products", "disabled": true },
+								{ "key": "minPrice", "value": "", "description": "Min price filter", "disabled": true },
+								{ "key": "maxPrice", "value": "", "description": "Max price filter", "disabled": true }
+							]
+						},
+						"auth": { "type": "noauth" }
+					}
+				},
+				{
+					"name": "Get Product by ID",
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["products", "{{productId}}"] },
+						"auth": { "type": "noauth" }
+					}
+				},
+				{
+					"name": "Create Product (Admin)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const res = pm.response.json();",
+									"if (res.data && res.data.id) {",
+									"    pm.collectionVariables.set('productId', res.data.id.toString());",
+									"    pm.test('Product ID saved', () => pm.expect(res.data.id).to.be.above(0));",
+									"}",
+									"pm.test('Status 201', () => pm.response.to.have.status(201));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"url": { "raw": "{{baseUrl}}/products", "host": ["{{baseUrl}}"], "path": ["products"] },
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Red Rose Premium\",\n    \"colorId\": 1,\n    \"growerId\": 1,\n    \"originId\": 1,\n    \"stock\": 100,\n    \"orderPer\": 10,\n    \"tagIds\": [1],\n    \"priceTiers\": [\n        { \"minQuantity\": 1, \"price\": 2.50 },\n        { \"minQuantity\": 10, \"price\": 2.00 },\n        { \"minQuantity\": 50, \"price\": 1.50 }\n    ]\n}"
+						}
+					}
+				},
+				{
+					"name": "Update Product (Admin)",
+					"request": {
+						"method": "PATCH",
+						"url": { "raw": "{{baseUrl}}/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["products", "{{productId}}"] },
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Red Rose Premium (Updated)\",\n    \"stock\": 200\n}"
+						}
+					}
+				},
+				{
+					"name": "Delete Product (Admin)",
+					"request": {
+						"method": "DELETE",
+						"url": { "raw": "{{baseUrl}}/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["products", "{{productId}}"] },
+						"header": [
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Lookup Tables",
+			"item": [
+				{
+					"name": "Colors",
+					"item": [
+						{
+							"name": "List Colors",
+							"request": {
+								"method": "GET",
+								"url": { "raw": "{{baseUrl}}/colors", "host": ["{{baseUrl}}"], "path": ["colors"] },
+								"auth": { "type": "noauth" }
+							}
+						},
+						{
+							"name": "Create Color (Admin)",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"const res = pm.response.json();",
+											"if (res.data && res.data.id) {",
+											"    pm.collectionVariables.set('colorId', res.data.id.toString());",
+											"}"
+										]
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"url": { "raw": "{{baseUrl}}/colors", "host": ["{{baseUrl}}"], "path": ["colors"] },
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" },
+									{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Red\"\n}"
+								}
+							}
+						},
+						{
+							"name": "Delete Color (Admin)",
+							"request": {
+								"method": "DELETE",
+								"url": { "raw": "{{baseUrl}}/colors/{{colorId}}", "host": ["{{baseUrl}}"], "path": ["colors", "{{colorId}}"] },
+								"header": [
+									{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Growers",
+					"item": [
+						{
+							"name": "List Growers",
+							"request": {
+								"method": "GET",
+								"url": { "raw": "{{baseUrl}}/growers", "host": ["{{baseUrl}}"], "path": ["growers"] },
+								"auth": { "type": "noauth" }
+							}
+						},
+						{
+							"name": "Create Grower (Admin)",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"const res = pm.response.json();",
+											"if (res.data && res.data.id) {",
+											"    pm.collectionVariables.set('growerId', res.data.id.toString());",
+											"}"
+										]
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"url": { "raw": "{{baseUrl}}/growers", "host": ["{{baseUrl}}"], "path": ["growers"] },
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" },
+									{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Dutch Flower Group\"\n}"
+								}
+							}
+						},
+						{
+							"name": "Delete Grower (Admin)",
+							"request": {
+								"method": "DELETE",
+								"url": { "raw": "{{baseUrl}}/growers/{{growerId}}", "host": ["{{baseUrl}}"], "path": ["growers", "{{growerId}}"] },
+								"header": [
+									{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Origins",
+					"item": [
+						{
+							"name": "List Origins",
+							"request": {
+								"method": "GET",
+								"url": { "raw": "{{baseUrl}}/origins", "host": ["{{baseUrl}}"], "path": ["origins"] },
+								"auth": { "type": "noauth" }
+							}
+						},
+						{
+							"name": "Create Origin (Admin)",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"const res = pm.response.json();",
+											"if (res.data && res.data.id) {",
+											"    pm.collectionVariables.set('originId', res.data.id.toString());",
+											"}"
+										]
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"url": { "raw": "{{baseUrl}}/origins", "host": ["{{baseUrl}}"], "path": ["origins"] },
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" },
+									{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Netherlands\"\n}"
+								}
+							}
+						},
+						{
+							"name": "Delete Origin (Admin)",
+							"request": {
+								"method": "DELETE",
+								"url": { "raw": "{{baseUrl}}/origins/{{originId}}", "host": ["{{baseUrl}}"], "path": ["origins", "{{originId}}"] },
+								"header": [
+									{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Tags",
+					"item": [
+						{
+							"name": "List Tags",
+							"request": {
+								"method": "GET",
+								"url": { "raw": "{{baseUrl}}/tags", "host": ["{{baseUrl}}"], "path": ["tags"] },
+								"auth": { "type": "noauth" }
+							}
+						},
+						{
+							"name": "Create Tag (Admin)",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"const res = pm.response.json();",
+											"if (res.data && res.data.id) {",
+											"    pm.collectionVariables.set('tagId', res.data.id.toString());",
+											"}"
+										]
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"url": { "raw": "{{baseUrl}}/tags", "host": ["{{baseUrl}}"], "path": ["tags"] },
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" },
+									{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Premium\",\n    \"slug\": \"premium\"\n}"
+								}
+							}
+						},
+						{
+							"name": "Delete Tag (Admin)",
+							"request": {
+								"method": "DELETE",
+								"url": { "raw": "{{baseUrl}}/tags/{{tagId}}", "host": ["{{baseUrl}}"], "path": ["tags", "{{tagId}}"] },
+								"header": [
+									{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Wallet",
+			"item": [
+				{
+					"name": "Get My Wallet",
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/wallet", "host": ["{{baseUrl}}"], "path": ["wallet"] }
+					}
+				},
+				{
+					"name": "Get My Transactions",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/wallet/transactions?page=1&limit=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["wallet", "transactions"],
+							"query": [
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "20" },
+								{ "key": "type", "value": "DEPOSIT", "description": "DEPOSIT | WITHDRAWAL | PURCHASE | REFUND | ADJUSTMENT", "disabled": true }
+							]
+						}
+					}
+				},
+				{
+					"name": "Get User Wallet (Admin)",
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/users/{{userId}}/wallet", "host": ["{{baseUrl}}"], "path": ["users", "{{userId}}", "wallet"] }
+					}
+				},
+				{
+					"name": "Get User Transactions (Admin)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/users/{{userId}}/wallet/transactions?page=1&limit=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["users", "{{userId}}", "wallet", "transactions"],
+							"query": [
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "20" },
+								{ "key": "type", "value": "DEPOSIT", "disabled": true }
+							]
+						}
+					}
+				},
+				{
+					"name": "Deposit to User Wallet (Admin)",
+					"request": {
+						"method": "POST",
+						"url": { "raw": "{{baseUrl}}/users/{{userId}}/wallet/deposit", "host": ["{{baseUrl}}"], "path": ["users", "{{userId}}", "wallet", "deposit"] },
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"amount\": 100.00,\n    \"description\": \"Manual deposit by admin\"\n}"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Payment (BOG)",
+			"item": [
+				{
+					"name": "Create Top-Up",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const res = pm.response.json();",
+									"if (res.data) {",
+									"    if (res.data.order && res.data.order.id) {",
+									"        pm.collectionVariables.set('paymentOrderId', res.data.order.id);",
+									"        pm.test('Payment order ID saved', () => pm.expect(res.data.order.id).to.be.a('string'));",
+									"    }",
+									"    if (res.data.redirectUrl) {",
+									"        pm.test('Has redirect URL', () => pm.expect(res.data.redirectUrl).to.include('order_id'));",
+									"        console.log('\\n=== OPEN THIS URL IN BROWSER TO PAY ===');",
+									"        console.log(res.data.redirectUrl);",
+									"        console.log('=======================================\\n');",
+									"    }",
+									"}",
+									"pm.test('Status 200', () => pm.response.to.have.status(200));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"url": { "raw": "{{baseUrl}}/payment/topup", "host": ["{{baseUrl}}"], "path": ["payment", "topup"] },
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-CSRF-Token", "value": "{{csrfToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"amount\": 50.00\n}"
+						}
+					}
+				},
+				{
+					"name": "List My Payment Orders",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/payment/orders?page=1&limit=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["payment", "orders"],
+							"query": [
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "20" },
+								{ "key": "status", "value": "COMPLETED", "description": "PENDING | COMPLETED | FAILED | REFUNDED", "disabled": true }
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Payment Order by ID",
+					"request": {
+						"method": "GET",
+						"url": { "raw": "{{baseUrl}}/payment/orders/{{paymentOrderId}}", "host": ["{{baseUrl}}"], "path": ["payment", "orders", "{{paymentOrderId}}"] }
+					}
+				},
+				{
+					"name": "--- Mock BOG Server ---",
+					"item": [
+						{
+							"name": "BOG Mock: Get Token",
+							"request": {
+								"method": "POST",
+								"url": { "raw": "{{bogMockUrl}}/oauth2/token", "host": ["{{bogMockUrl}}"], "path": ["oauth2", "token"] },
+								"auth": { "type": "noauth" },
+								"header": [
+									{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+								],
+								"body": {
+									"mode": "urlencoded",
+									"urlencoded": [
+										{ "key": "grant_type", "value": "client_credentials" }
+									]
+								}
+							}
+						},
+						{
+							"name": "BOG Mock: Get Payment Details",
+							"request": {
+								"method": "GET",
+								"url": { "raw": "{{bogMockUrl}}/payments/v1/receipt/{{paymentOrderId}}", "host": ["{{bogMockUrl}}"], "path": ["payments", "v1", "receipt", "{{paymentOrderId}}"] },
+								"auth": { "type": "noauth" },
+								"description": "Note: This uses the BOG order ID, not your internal payment order ID. Check the payment order response for bogOrderId."
+							}
+						}
+					]
+				}
+			]
+		}
+	]
+}
