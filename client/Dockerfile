@@ -42,10 +42,9 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy public assets
 COPY --from=builder /app/public ./public
 
-# Standalone output is in .next/standalone/client/ due to monorepo workspace
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone/node_modules ./node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone/client/server.js ./server.js
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone/client/package.json ./package.json
+# Standalone output (built from client dir directly, not monorepo root)
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
