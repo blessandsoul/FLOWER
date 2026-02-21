@@ -68,9 +68,9 @@ USER fastify
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
     CMD wget -q --spider http://localhost:8000/api/v1/health || exit 1
 
 # Start with dumb-init for proper signal handling
 # Runs migrations then starts PM2 in cluster mode
-CMD ["dumb-init", "sh", "-c", "npx prisma migrate deploy && npx pm2-runtime ecosystem.config.cjs"]
+CMD ["dumb-init", "sh", "-c", "npx prisma migrate deploy && npx pm2-runtime ecosystem.config.cjs --env production"]
