@@ -2,24 +2,6 @@ name: florca
 
 services:
   # ==========================================
-  # MySQL Database
-  # ==========================================
-  mysql:
-    image: mysql:8.0
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: ${DB_NAME:-flower_db}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    command: --default-authentication-plugin=mysql_native_password
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-rootpassword}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  # ==========================================
   # Redis Cache
   # ==========================================
   redis:
@@ -45,11 +27,11 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8000
-      DATABASE_URL: mysql://root:${DB_PASSWORD:-rootpassword}@mysql:3306/${DB_NAME:-flower_db}
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: root
-      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      DATABASE_URL: ${DATABASE_URL}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME:-flower_db}
       ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET}
       REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET}
@@ -76,8 +58,6 @@ services:
     volumes:
       - uploads_data:/app/uploads
     depends_on:
-      mysql:
-        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -106,6 +86,5 @@ services:
         condition: service_healthy
 
 volumes:
-  mysql_data:
   redis_data:
   uploads_data:
