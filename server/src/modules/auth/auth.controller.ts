@@ -13,12 +13,13 @@ import {
   resetPasswordSchema,
 } from "./auth.schemas.js";
 
-const isProduction = env.NODE_ENV === "production";
+// Cookie secure flag: explicit env var overrides, otherwise based on NODE_ENV
+const cookieSecure = env.COOKIE_SECURE ?? (env.NODE_ENV === "production");
 
 // Cookie configuration
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: isProduction,
+  secure: cookieSecure,
   sameSite: "lax" as const,
   path: "/",
 };

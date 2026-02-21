@@ -38,6 +38,9 @@ const envSchema = z.object({
   // Stock display ratio (scraped data safety margin, e.g. 0.6 = show 60%)
   STOCK_DISPLAY_RATIO: z.coerce.number().min(0).max(1).default(0.6),
 
+  // Cookie security (set to false for HTTP deployments)
+  COOKIE_SECURE: z.coerce.boolean().optional(),
+
   // Redis
   REDIS_HOST: z.string().default("localhost"),
   REDIS_PORT: z.coerce.number().int().positive().default(6381),

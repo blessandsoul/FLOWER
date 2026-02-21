@@ -30,6 +30,9 @@ function buildApp() {
   // CORS support
   // In production: use CORS_ORIGINS env var (comma-separated list)
   // In development: allow common dev ports
+  // Cookie secure flag: explicit env var overrides, otherwise based on NODE_ENV
+  const cookieSecure = env.COOKIE_SECURE ?? (env.NODE_ENV === "production");
+
   const allowedOrigins = env.NODE_ENV === "production" && env.CORS_ORIGINS
     ? env.CORS_ORIGINS
     : [
@@ -71,8 +74,8 @@ function buildApp() {
     secret: env.ACCESS_TOKEN_SECRET, // Use access token secret for cookie signing
     parseOptions: {
       httpOnly: true,
-      secure: env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: cookieSecure,
+      sameSite: "lax",
     },
   });
 
@@ -82,8 +85,8 @@ function buildApp() {
     sessionPlugin: "@fastify/cookie",
     cookieOpts: {
       httpOnly: true,
-      secure: env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: cookieSecure,
+      sameSite: "lax",
       path: "/",
     },
     getToken: (request: FastifyRequest) => {

@@ -6,7 +6,7 @@
 import type { Product, ProductDetail } from '@/types';
 import type { ServerProduct, ServerProductDetail } from '../types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const UPLOADS_BASE_URL = process.env.NEXT_PUBLIC_UPLOADS_URL || '';
 
 /**
  * Returns true if the URL is a valid absolute URL (http/https) or a local upload path.
@@ -22,7 +22,7 @@ function isValidImageUrl(url: string): boolean {
  */
 function resolveImageUrl(imageUrl: string | null, imageFilename: string | null): string | null {
   if (imageUrl && isValidImageUrl(imageUrl)) return imageUrl;
-  if (imageFilename) return `${API_BASE_URL}/uploads/${imageFilename}`;
+  if (imageFilename) return `${UPLOADS_BASE_URL}/uploads/${imageFilename}`;
   return null;
 }
 
