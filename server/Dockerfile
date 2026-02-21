@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies (including dev)
-RUN npm ci
+RUN npm install
 
 # Copy prisma schema first (for generate)
 COPY prisma ./prisma/
@@ -43,7 +43,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY package*.json ./
 
 # Install production dependencies only
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Copy prisma schema and generate client
 COPY prisma ./prisma/

@@ -49,7 +49,9 @@
       "Bash(npx next dev:*)",
       "mcp__plugin_playwright_playwright__browser_resize",
       "Bash(docker ps:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(git add:*)",
+      "Bash(npm install:*)"
     ]
   }
 }
