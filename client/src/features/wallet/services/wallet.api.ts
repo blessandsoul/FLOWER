@@ -61,4 +61,31 @@ export const paymentApi = {
         const json = await fetchApi<ApiResponse<PaymentOrder>>(`/payment/orders/${id}`);
         return unwrapData(json);
     },
+
+    /** Simulate BOG callback to complete/reject a payment (mock mode) */
+    simulateBogCallback: async (
+        bogOrderId: string,
+        amount: number,
+        currency: string,
+        status: 'completed' | 'rejected'
+    ): Promise<void> => {
+        await fetchApi('/payment/bog/callback', {
+            method: 'POST',
+            body: JSON.stringify({
+                event: 'order_payment',
+                zoned_request_time: new Date().toISOString(),
+                body: {
+                    order_id: bogOrderId,
+                    order_status: {
+                        key: status,
+                        value: status === 'completed' ? 'Completed' : 'Rejected',
+                    },
+                    purchase_units: {
+                        request_amount: amount.toFixed(2),
+                        currency_code: currency,
+                    },
+                },
+            }),
+        });
+    },
 };

@@ -7,11 +7,19 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, CreditCard } from 'lucide-react';
 import { useTopUp } from '../hooks';
+import { MockPaymentModal } from './MockPaymentModal';
 
 const PRESET_AMOUNTS = [10, 25, 50, 100, 250, 500];
 
+interface MockPaymentData {
+    bogOrderId: string;
+    amount: number;
+    currency: string;
+}
+
 export function TopUpForm() {
     const [amount, setAmount] = useState<string>('');
+    const [mockPayment, setMockPayment] = useState<MockPaymentData | null>(null);
     const topUpMutation = useTopUp();
 
     const handlePreset = (preset: number) => {
@@ -26,63 +34,78 @@ export function TopUpForm() {
         }
 
         try {
-            const { redirectUrl } = await topUpMutation.mutateAsync(numericAmount);
-            toast.info('გადამისამართება საგადახდო გვერდზე...');
-            window.location.href = redirectUrl;
+            const { order } = await topUpMutation.mutateAsync(numericAmount);
+            // Show mock payment modal instead of redirecting to BOG
+            setMockPayment({
+                bogOrderId: order.bogOrderId!,
+                amount: numericAmount,
+                currency: order.currency,
+            });
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'შეცდომა შევსებისას');
         }
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                    <CreditCard className="h-5 w-5" />
-                    ბალანსის შევსება
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-2">
-                    {PRESET_AMOUNTS.map((preset) => (
+        <>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <CreditCard className="h-5 w-5" />
+                        ბალანსის შევსება
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-3 gap-2">
+                        {PRESET_AMOUNTS.map((preset) => (
+                            <Button
+                                key={preset}
+                                variant={amount === String(preset) ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => handlePreset(preset)}
+                            >
+                                {preset} ₾
+                            </Button>
+                        ))}
+                    </div>
+
+                    <div className="flex gap-2">
+                        <Input
+                            type="number"
+                            placeholder="თანხა (₾)"
+                            min={0.5}
+                            max={50000}
+                            step={0.01}
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                        />
                         <Button
-                            key={preset}
-                            variant={amount === String(preset) ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => handlePreset(preset)}
+                            onClick={handleSubmit}
+                            disabled={topUpMutation.isPending || !amount}
+                            className="min-w-[120px]"
                         >
-                            {preset} ₾
+                            {topUpMutation.isPending && (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            )}
+                            შევსება
                         </Button>
-                    ))}
-                </div>
+                    </div>
 
-                <div className="flex gap-2">
-                    <Input
-                        type="number"
-                        placeholder="თანხა (₾)"
-                        min={0.5}
-                        max={50000}
-                        step={0.01}
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                    />
-                    <Button
-                        onClick={handleSubmit}
-                        disabled={topUpMutation.isPending || !amount}
-                        className="min-w-[120px]"
-                    >
-                        {topUpMutation.isPending && (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        )}
-                        შევსება
-                    </Button>
-                </div>
+                    <p className="text-xs text-muted-foreground">
+                        მინიმუმ: 0.50 ₾ &middot; მაქსიმუმ: 50,000 ₾
+                    </p>
+                </CardContent>
+            </Card>
 
-                <p className="text-xs text-muted-foreground">
-                    მინიმუმ: 0.50 ₾ &middot; მაქსიმუმ: 50,000 ₾
-                </p>
-            </CardContent>
-        </Card>
+            {mockPayment && (
+                <MockPaymentModal
+                    bogOrderId={mockPayment.bogOrderId}
+                    amount={mockPayment.amount}
+                    currency={mockPayment.currency}
+                    onClose={() => setMockPayment(null)}
+                />
+            )}
+        </>
     );
 }
