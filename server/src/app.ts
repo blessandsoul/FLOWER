@@ -33,15 +33,6 @@ function buildApp() {
   // Cookie secure flag: explicit env var overrides, otherwise based on NODE_ENV
   const cookieSecure = env.COOKIE_SECURE ?? (env.NODE_ENV === "production");
 
-  const allowedOrigins = env.NODE_ENV === "production" && env.CORS_ORIGINS
-    ? env.CORS_ORIGINS
-    : [
-        "http://localhost:3000",  // Next.js default
-        "http://localhost:3001",  // Alternative port
-        "http://localhost:5173",  // Vite default
-        "http://localhost:8000",  // Server port (for same-origin testing)
-      ];
-
   app.register(fastifyCors, {
     origin: true,
     credentials: true,

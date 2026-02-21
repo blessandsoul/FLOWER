@@ -66,10 +66,8 @@ export async function getCsrfToken(
   _request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
-  // Generate CSRF token using the plugin's method
-  const token = await reply.generateCsrf();
-
-  return reply.send(successResponse("CSRF token generated", { csrfToken: token }));
+  // CSRF disabled for review deployment
+  return reply.send(successResponse("CSRF disabled", { csrfToken: "disabled" }));
 }
 
 // ==========================================
