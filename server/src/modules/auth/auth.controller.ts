@@ -91,7 +91,8 @@ export async function register(
   return reply.status(201).send(
     successResponse("User registered successfully. Please check your email to verify your account.", {
       user: result.user,
-      // Don't send tokens in response body - they're in cookies now
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
     })
   );
 }
@@ -116,7 +117,8 @@ export async function login(
 
   return reply.send(successResponse("Logged in successfully", {
     user: result.user,
-    // Don't send tokens in response body - they're in cookies now
+    accessToken: result.accessToken,
+    refreshToken: result.refreshToken,
   }));
 }
 
