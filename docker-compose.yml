@@ -1,0 +1,111 @@
+name: florca
+
+services:
+  # ==========================================
+  # MySQL Database
+  # ==========================================
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-flower_db}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ==========================================
+  # Redis Cache
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ==========================================
+  # Fastify API Server
+  # ==========================================
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 8000
+      DATABASE_URL: mysql://root:${DB_PASSWORD:-rootpassword}@mysql:3306/${DB_NAME:-flower_db}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      DB_NAME: ${DB_NAME:-flower_db}
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET}
+      ACCESS_TOKEN_EXPIRES_IN: ${ACCESS_TOKEN_EXPIRES_IN:-15m}
+      REFRESH_TOKEN_EXPIRES_IN: ${REFRESH_TOKEN_EXPIRES_IN:-7d}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-"Florca <noreply@florca.ge>"}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      STOCK_DISPLAY_RATIO: ${STOCK_DISPLAY_RATIO:-0.6}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      WALLET_CURRENCY: ${WALLET_CURRENCY:-GEL}
+      BOG_CLIENT_ID: ${BOG_CLIENT_ID:-test}
+      BOG_SECRET_KEY: ${BOG_SECRET_KEY:-test}
+      BOG_BASE_URL: ${BOG_BASE_URL:-http://localhost:4001}
+      BOG_CALLBACK_URL: ${BOG_CALLBACK_URL:-http://localhost:8000/api/v1/payment/bog/callback}
+      BOG_SUCCESS_REDIRECT_URL: ${BOG_SUCCESS_REDIRECT_URL:-http://localhost:3000/wallet?payment=success}
+      BOG_FAIL_REDIRECT_URL: ${BOG_FAIL_REDIRECT_URL:-http://localhost:3000/wallet?payment=failed}
+      BOG_PAYMENT_CURRENCY: ${BOG_PAYMENT_CURRENCY:-GEL}
+      BOG_MOCK_ENABLED: ${BOG_MOCK_ENABLED:-false}
+      BOG_MOCK_PORT: ${BOG_MOCK_PORT:-4001}
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+  # ==========================================
+  # Next.js Client
+  # ==========================================
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://server:8000
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://server:8000
+    ports:
+      - "${CLIENT_PORT:-3000}:3000"
+    depends_on:
+      server:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
+  redis_data:
+  uploads_data:

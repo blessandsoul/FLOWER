@@ -9,11 +9,19 @@ import type { ServerProduct, ServerProductDetail } from '../types';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 /**
+ * Returns true if the URL is a valid absolute URL (http/https) or a local upload path.
+ */
+function isValidImageUrl(url: string): boolean {
+  return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/');
+}
+
+/**
  * Resolves the best available image URL for a product.
  * Priority: imageUrl (external DB URL) > imageFilename (local upload) > null
+ * Filters out broken/relative URLs that aren't proper absolute URLs.
  */
 function resolveImageUrl(imageUrl: string | null, imageFilename: string | null): string | null {
-  if (imageUrl) return imageUrl;
+  if (imageUrl && isValidImageUrl(imageUrl)) return imageUrl;
   if (imageFilename) return `${API_BASE_URL}/uploads/${imageFilename}`;
   return null;
 }

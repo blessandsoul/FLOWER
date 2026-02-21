@@ -45,7 +45,11 @@
       "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"yes\" npx prisma migrate reset:*)",
       "Bash(wmic process:*)",
       "Bash(1:*)",
-      "Bash(powershell -Command \"Get-Process -Name ''node'' -ErrorAction SilentlyContinue | Select-Object Id, ProcessName\")"
+      "Bash(powershell -Command \"Get-Process -Name ''node'' -ErrorAction SilentlyContinue | Select-Object Id, ProcessName\")",
+      "Bash(npx next dev:*)",
+      "mcp__plugin_playwright_playwright__browser_resize",
+      "Bash(docker ps:*)",
+      "Bash(docker exec:*)"
     ]
   }
 }

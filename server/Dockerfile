@@ -1,5 +1,5 @@
 # ==========================================
-# FLOWER SERVER - MULTI-STAGE DOCKERFILE
+# FLORCA SERVER - MULTI-STAGE DOCKERFILE
 # ==========================================
 
 # Stage 1: Builder
@@ -55,8 +55,8 @@ COPY --from=builder /app/dist ./dist
 # Copy PM2 config
 COPY ecosystem.config.cjs ./
 
-# Create uploads directory
-RUN mkdir -p uploads && chown -R fastify:nodejs uploads
+# Create directories with proper ownership
+RUN mkdir -p uploads logs && chown -R fastify:nodejs uploads logs
 
 # Switch to non-root user
 USER fastify
@@ -65,7 +65,7 @@ USER fastify
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD wget -q --spider http://localhost:8000/api/v1/health || exit 1
 
 # Start with dumb-init for proper signal handling
