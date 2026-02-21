@@ -4,7 +4,7 @@ import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import fastifyCors from "@fastify/cors";
 import fastifyCookie from "@fastify/cookie";
-import fastifyCsrf from "@fastify/csrf-protection";
+// import fastifyCsrf from "@fastify/csrf-protection";
 import path from "path";
 import { fileURLToPath } from "url";
 import { logger } from "./libs/logger.js";
@@ -43,26 +43,7 @@ function buildApp() {
       ];
 
   app.register(fastifyCors, {
-    origin: (origin, callback) => {
-      // Handle requests with no origin header
-      if (!origin) {
-        // Allow requests without origin header in all environments
-        // This includes: direct browser navigation, curl, Postman, health checks
-        // Safe because we protect state-changing operations with CSRF tokens
-        return callback(null, true);
-      }
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      // In development, log rejected origins for debugging
-      if (env.NODE_ENV !== "production") {
-        logger.warn({ origin }, "CORS: Origin not allowed");
-      }
-
-      return callback(new Error("CORS: Origin not allowed"), false);
-    },
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-CSRF-Token'],
@@ -79,21 +60,9 @@ function buildApp() {
     },
   });
 
-  // CSRF protection for state-changing requests
-  // Client must send X-CSRF-Token header with value from /api/v1/auth/csrf-token endpoint
-  app.register(fastifyCsrf, {
-    sessionPlugin: "@fastify/cookie",
-    cookieOpts: {
-      httpOnly: true,
-      secure: cookieSecure,
-      sameSite: "lax",
-      path: "/",
-    },
-    getToken: (request: FastifyRequest) => {
-      // Accept CSRF token from X-CSRF-Token header
-      return request.headers["x-csrf-token"] as string;
-    },
-  });
+  // CSRF protection disabled for review deployment
+  // TODO: Re-enable for production with proper HTTPS
+  // app.register(fastifyCsrf, { ... });
 
   // Security headers with Helmet
   app.register(helmet, {
