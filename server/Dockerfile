@@ -7,6 +7,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Force development mode so devDependencies (typescript, @types/*) are installed
+ENV NODE_ENV=development
+
 # Copy package files
 COPY package*.json ./
 
