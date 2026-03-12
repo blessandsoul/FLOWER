@@ -20,8 +20,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build-time env vars (API URL for rewrites)
-ARG BACKEND_URL=http://server:8000
+# Build-time env vars
+ARG NEXT_PUBLIC_API_URL=/api/v1
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ARG BACKEND_URL=http://localhost:8000
 ENV BACKEND_URL=${BACKEND_URL}
 
 RUN npm run build
@@ -54,7 +56,7 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Runtime env var for API rewrites
-ENV BACKEND_URL=http://server:8000
+# Runtime env var for API rewrites (set at deploy time)
+ENV BACKEND_URL=http://localhost:8000
 
 CMD ["node", "server.js"]
