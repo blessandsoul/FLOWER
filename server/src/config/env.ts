@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const booleanString = z
+  .string()
+  .transform((val) => val === "true" || val === "1")
+  .pipe(z.boolean());
+
 const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
@@ -39,10 +44,10 @@ const envSchema = z.object({
   STOCK_DISPLAY_RATIO: z.coerce.number().min(0).max(1).default(0.6),
 
   // Cookie security (set to false for HTTP deployments)
-  COOKIE_SECURE: z.coerce.boolean().optional(),
+  COOKIE_SECURE: booleanString.optional(),
 
   // Redis
-  REDIS_ENABLED: z.coerce.boolean().default(false),
+  REDIS_ENABLED: booleanString.default("false"),
   REDIS_HOST: z.string().default("localhost"),
   REDIS_PORT: z.coerce.number().int().positive().default(6381),
   REDIS_PASSWORD: z.string().optional(),
@@ -58,7 +63,7 @@ const envSchema = z.object({
   BOG_SUCCESS_REDIRECT_URL: z.string().url().default("http://localhost:3000/wallet?payment=success"),
   BOG_FAIL_REDIRECT_URL: z.string().url().default("http://localhost:3000/wallet?payment=failed"),
   BOG_PAYMENT_CURRENCY: z.enum(["GEL", "USD", "EUR", "GBP"]).default("GEL"),
-  BOG_MOCK_ENABLED: z.coerce.boolean().default(true),
+  BOG_MOCK_ENABLED: booleanString.default("true"),
   BOG_MOCK_PORT: z.coerce.number().int().positive().default(4001),
 });
 
