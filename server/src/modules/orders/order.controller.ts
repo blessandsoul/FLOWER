@@ -6,6 +6,7 @@ import {
   placeOrderSchema,
   orderIdParamSchema,
   orderListQuerySchema,
+  adminOrderListQuerySchema,
   updateOrderStatusSchema,
 } from "./order.schemas.js";
 
@@ -97,16 +98,17 @@ export async function getAllOrders(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
-  const queryParsed = orderListQuerySchema.safeParse(request.query);
+  const queryParsed = adminOrderListQuerySchema.safeParse(request.query);
   if (!queryParsed.success) {
     throw new ValidationError(queryParsed.error.errors[0].message);
   }
 
-  const { page, limit, status } = queryParsed.data;
-  const { items, totalItems } = await orderService.getAllOrders(
+  const { page, limit, ...filters } = queryParsed.data;
+
+  const { items, totalItems } = await orderService.getAllOrdersAdmin(
     page,
     limit,
-    status
+    filters
   );
 
   return reply.send(

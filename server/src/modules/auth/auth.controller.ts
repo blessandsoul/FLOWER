@@ -91,8 +91,7 @@ export async function register(
   return reply.status(201).send(
     successResponse("User registered successfully. Please check your email to verify your account.", {
       user: result.user,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
+      ...(result.warnings ? { warnings: result.warnings } : {}),
     })
   );
 }
@@ -117,8 +116,6 @@ export async function login(
 
   return reply.send(successResponse("Logged in successfully", {
     user: result.user,
-    accessToken: result.accessToken,
-    refreshToken: result.refreshToken,
   }));
 }
 

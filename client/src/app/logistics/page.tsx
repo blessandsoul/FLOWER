@@ -1,6 +1,5 @@
 import { LogisticsHero } from '@/components/logistics/LogisticsHero';
 import { RouteMap } from '@/components/logistics/RouteMap';
-import { ShippingCalculator } from '@/components/logistics/ShippingCalculator';
 import { WarehouseInfo } from '@/components/logistics/WarehouseInfo';
 import type { Metadata } from 'next';
 
@@ -15,7 +14,6 @@ export default function LogisticsPage() {
             <LogisticsHero />
             <RouteMap />
             <WarehouseInfo />
-            <ShippingCalculator />
         </div>
     );
 }

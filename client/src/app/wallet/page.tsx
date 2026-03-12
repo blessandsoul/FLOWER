@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense } from 'react';
+import { RouteGuard } from '@/components/auth/RouteGuard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -59,8 +60,10 @@ function WalletSkeleton() {
 
 export default function WalletPage() {
     return (
-        <Suspense fallback={<WalletSkeleton />}>
-            <WalletContent />
-        </Suspense>
+        <RouteGuard>
+            <Suspense fallback={<WalletSkeleton />}>
+                <WalletContent />
+            </Suspense>
+        </RouteGuard>
     );
 }

@@ -1,4 +1,5 @@
 import * as orderRepo from "./order.repo.js";
+import type { AdminOrderFilters } from "./order.repo.js";
 import {
   BadRequestError,
   NotFoundError,
@@ -90,6 +91,21 @@ export async function getAllOrders(
   const [items, totalItems] = await Promise.all([
     orderRepo.findAllOrders(offset, limit, status),
     orderRepo.countAllOrders(status),
+  ]);
+
+  return { items, totalItems };
+}
+
+export async function getAllOrdersAdmin(
+  page: number,
+  limit: number,
+  filters: AdminOrderFilters
+): Promise<{ items: OrderWithUser[]; totalItems: number }> {
+  const offset = (page - 1) * limit;
+
+  const [items, totalItems] = await Promise.all([
+    orderRepo.findAllOrdersAdmin(offset, limit, filters),
+    orderRepo.countAllOrdersAdmin(filters),
   ]);
 
   return { items, totalItems };

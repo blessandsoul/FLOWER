@@ -38,6 +38,12 @@ export interface AuthResponse {
   warnings?: string[];
 }
 
+/** Response shape sent to the client (tokens are in httpOnly cookies, never in body) */
+export interface ClientAuthResponse {
+  user: SafeUser;
+  warnings?: string[];
+}
+
 // JWT decoded user (used in auth middleware)
 export interface JwtUser {
   id: string;

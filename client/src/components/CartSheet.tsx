@@ -36,7 +36,7 @@ export function CartSheet() {
                 onSuccess: () => {
                     clearCart();
                     setIsOpen(false);
-                    router.push('/orders');
+                    router.push('/dashboard');
                 },
             }
         );

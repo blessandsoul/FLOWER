@@ -341,6 +341,90 @@ export async function cancelOrder(orderId: string): Promise<Order> {
 // Query functions
 // ==========================================
 
+// ==========================================
+// Admin filtering
+// ==========================================
+
+export interface AdminOrderFilters {
+  status?: OrderStatus;
+  search?: string;
+  minTotal?: number;
+  maxTotal?: number;
+  dateFrom?: Date;
+  dateTo?: Date;
+  sortBy: "createdAt" | "totalAmount" | "orderNumber" | "status";
+  sortOrder: "asc" | "desc";
+}
+
+function buildAdminOrderWhere(filters: AdminOrderFilters) {
+  const AND: any[] = [];
+
+  if (filters.status) {
+    AND.push({ status: filters.status });
+  }
+
+  if (filters.minTotal !== undefined) {
+    AND.push({ totalAmount: { gte: filters.minTotal } });
+  }
+
+  if (filters.maxTotal !== undefined) {
+    AND.push({ totalAmount: { lte: filters.maxTotal } });
+  }
+
+  if (filters.dateFrom) {
+    AND.push({ createdAt: { gte: filters.dateFrom } });
+  }
+
+  if (filters.dateTo) {
+    const endOfDay = new Date(filters.dateTo);
+    endOfDay.setHours(23, 59, 59, 999);
+    AND.push({ createdAt: { lte: endOfDay } });
+  }
+
+  if (filters.search) {
+    const s = filters.search;
+    AND.push({
+      OR: [
+        { orderNumber: { contains: s } },
+        { user: { firstName: { contains: s } } },
+        { user: { lastName: { contains: s } } },
+        { user: { email: { contains: s } } },
+      ],
+    });
+  }
+
+  return AND.length > 0 ? { AND } : {};
+}
+
+export async function findAllOrdersAdmin(
+  skip: number,
+  take: number,
+  filters: AdminOrderFilters
+): Promise<OrderWithUser[]> {
+  const where = buildAdminOrderWhere(filters);
+
+  const orders = await prisma.order.findMany({
+    where,
+    include: orderWithUserInclude,
+    orderBy: { [filters.sortBy]: filters.sortOrder },
+    skip,
+    take,
+  });
+
+  return orders.map(toOrderWithUser);
+}
+
+export async function countAllOrdersAdmin(
+  filters: AdminOrderFilters
+): Promise<number> {
+  const where = buildAdminOrderWhere(filters);
+  return prisma.order.count({ where });
+}
+
+// ==========================================
+// Query functions
+// ==========================================
+
 export async function findOrderById(id: string): Promise<Order | null> {
   const order = await prisma.order.findUnique({
     where: { id },

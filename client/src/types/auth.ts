@@ -1,10 +1,5 @@
 import type { User } from './index';
 
-export interface AuthTokens {
-    accessToken: string;
-    refreshToken: string;
-}
-
 export interface AuthResponse {
     user: User;
     // Tokens are now in httpOnly cookies, not in response body

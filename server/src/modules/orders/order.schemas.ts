@@ -29,6 +29,25 @@ export const orderListQuerySchema = z.object({
     .optional(),
 });
 
+export const adminOrderListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  status: z
+    .enum(["PENDING", "APPROVED", "SHIPPED", "DELIVERED", "CANCELLED"])
+    .optional(),
+  search: z.string().max(200).optional(),
+  minTotal: z.coerce.number().min(0).optional(),
+  maxTotal: z.coerce.number().min(0).optional(),
+  dateFrom: z.coerce.date().optional(),
+  dateTo: z.coerce.date().optional(),
+  sortBy: z
+    .enum(["createdAt", "totalAmount", "orderNumber", "status"])
+    .default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+});
+
+export type AdminOrderListQuery = z.infer<typeof adminOrderListQuerySchema>;
+
 export const updateOrderStatusSchema = z.object({
   status: z.enum(["APPROVED", "SHIPPED", "DELIVERED", "CANCELLED"]),
 });

@@ -44,4 +44,20 @@ export interface OrderFilters {
     status?: OrderStatus;
 }
 
+export type SortableOrderColumn = 'createdAt' | 'totalAmount' | 'orderNumber' | 'status';
+export type SortOrder = 'asc' | 'desc';
+
+export interface AdminOrderFilters {
+    page?: number;
+    limit?: number;
+    status?: OrderStatus;
+    search?: string;
+    minTotal?: number;
+    maxTotal?: number;
+    dateFrom?: string;
+    dateTo?: string;
+    sortBy?: SortableOrderColumn;
+    sortOrder?: SortOrder;
+}
+
 export type { PaginatedResponse } from '@/features/wallet/types';

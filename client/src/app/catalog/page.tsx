@@ -163,13 +163,12 @@ function CatalogContent() {
 
           {/* Loading skeleton */}
           {isLoading && (
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
               {Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} className="space-y-2">
-                  <Skeleton className="aspect-square w-full rounded-lg" />
+                <div key={i} className="space-y-1.5">
+                  <Skeleton className="aspect-[4/3] w-full rounded-lg" />
                   <Skeleton className="h-3 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
-                  <Skeleton className="h-7 w-full" />
+                  <Skeleton className="h-5 w-1/2" />
                 </div>
               ))}
             </div>
@@ -199,7 +198,7 @@ function CatalogContent() {
                 </p>
               )}
 
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
                 {products.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
@@ -267,13 +266,12 @@ function CatalogSkeleton() {
           <Skeleton className="h-20 w-full" />
         </div>
         <div className="flex-1">
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
             {Array.from({ length: 12 }).map((_, i) => (
-              <div key={i} className="space-y-2">
-                <Skeleton className="aspect-square w-full rounded-lg" />
+              <div key={i} className="space-y-1.5">
+                <Skeleton className="aspect-[4/3] w-full rounded-lg" />
                 <Skeleton className="h-3 w-3/4" />
-                <Skeleton className="h-3 w-1/2" />
-                <Skeleton className="h-7 w-full" />
+                <Skeleton className="h-5 w-1/2" />
               </div>
             ))}
           </div>

@@ -60,7 +60,7 @@ export function AuctionTicker() {
     const [hoveredItem, setHoveredItem] = useState<typeof TICKER_ITEMS[0] | null>(null);
 
     return (
-        <div className="relative w-full bg-foreground text-background overflow-visible py-2 border-b border-white/5 cursor-default z-50">
+        <div className="relative w-full bg-foreground text-background overflow-visible py-2 border-b border-white/5 cursor-default z-40">
 
             <div className="flex whitespace-nowrap overflow-hidden">
                 <div

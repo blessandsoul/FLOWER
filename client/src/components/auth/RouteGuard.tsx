@@ -19,10 +19,12 @@ export function RouteGuard({
     redirectTo = '/login',
 }: RouteGuardProps) {
     const router = useRouter();
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, isHydrating } = useAuth();
     const { canAccess } = usePermission();
 
     useEffect(() => {
+        if (isHydrating) return;
+
         if (requireAuth && !isAuthenticated) {
             router.push(redirectTo);
             return;
@@ -30,8 +32,9 @@ export function RouteGuard({
         if (requiredRoles && !canAccess(requiredRoles)) {
             router.push('/dashboard');
         }
-    }, [isAuthenticated, requiredRoles, requireAuth, router, redirectTo, canAccess]);
+    }, [isAuthenticated, isHydrating, requiredRoles, requireAuth, router, redirectTo, canAccess]);
 
+    if (isHydrating) return null;
     if (requireAuth && !isAuthenticated) return null;
     if (requiredRoles && !canAccess(requiredRoles)) return null;
 

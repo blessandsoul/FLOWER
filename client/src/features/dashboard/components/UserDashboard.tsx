@@ -1,12 +1,11 @@
 'use client';
 
-import { MOCK_INVOICES } from '@/lib/mock-data';
+import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Clock, Package, ShieldCheck } from 'lucide-react';
-import { InvoicesTable } from '@/features/invoices/components/InvoicesTable';
 import { StatCard } from './StatCard';
 import { OrdersTable } from './OrdersTable';
-import { useOrders } from '@/features/orders/hooks';
+import { useOrders, useCancelOrder } from '@/features/orders/hooks';
 import type { User } from '@/types';
 
 interface UserDashboardProps {
@@ -14,8 +13,11 @@ interface UserDashboardProps {
 }
 
 export function UserDashboard({ user }: UserDashboardProps) {
-    const { data, isLoading } = useOrders({ page: 1, limit: 20 });
+    const [page, setPage] = useState(1);
+    const { data, isLoading } = useOrders({ page, limit: 10 });
+    const cancelOrder = useCancelOrder();
     const orders = data?.data?.items ?? [];
+    const pagination = data?.data?.pagination;
 
     const activeOrders = orders.filter(o => o.status === 'PENDING' || o.status === 'APPROVED').length;
 
@@ -32,7 +34,7 @@ export function UserDashboard({ user }: UserDashboardProps) {
                 <StatCard
                     icon={<Package />}
                     label="ჯამური შეკვეთები"
-                    value={isLoading ? '...' : orders.length}
+                    value={isLoading ? '...' : (pagination?.totalItems ?? orders.length)}
                     sub="სულ"
                     accent="text-purple-600"
                 />
@@ -48,12 +50,16 @@ export function UserDashboard({ user }: UserDashboardProps) {
             <Tabs defaultValue="orders">
                 <TabsList>
                     <TabsTrigger value="orders">ჩემი შეკვეთები</TabsTrigger>
-                    <TabsTrigger value="invoices">ინვოისები</TabsTrigger>
                 </TabsList>
                 <TabsContent value="orders">
-                    <OrdersTable orders={orders} isLoading={isLoading} />
+                    <OrdersTable
+                        orders={orders}
+                        isLoading={isLoading}
+                        pagination={pagination}
+                        onPageChange={setPage}
+                        onCancel={(id) => cancelOrder.mutate(id)}
+                    />
                 </TabsContent>
-                <TabsContent value="invoices"><InvoicesTable invoices={MOCK_INVOICES} /></TabsContent>
             </Tabs>
         </div>
     );

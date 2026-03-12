@@ -1,4 +1,4 @@
-import type { Order, OrderWithUser, PlaceOrderInput, OrderFilters } from '../types';
+import type { Order, OrderWithUser, PlaceOrderInput, OrderFilters, AdminOrderFilters } from '../types';
 import type { PaginatedResponse } from '@/features/wallet/types';
 import { fetchApi, unwrapData } from '@/lib/api';
 
@@ -45,11 +45,18 @@ export const ordersApi = {
         return unwrapData(json);
     },
 
-    getAdminOrders: async (filters?: OrderFilters): Promise<PaginatedResponse<OrderWithUser>> => {
+    getAdminOrders: async (filters?: AdminOrderFilters): Promise<PaginatedResponse<OrderWithUser>> => {
         const qs = buildQueryString({
             page: filters?.page,
             limit: filters?.limit,
             status: filters?.status,
+            search: filters?.search,
+            minTotal: filters?.minTotal,
+            maxTotal: filters?.maxTotal,
+            dateFrom: filters?.dateFrom,
+            dateTo: filters?.dateTo,
+            sortBy: filters?.sortBy,
+            sortOrder: filters?.sortOrder,
         });
         return fetchApi<PaginatedResponse<OrderWithUser>>(`/admin/orders${qs}`);
     },
