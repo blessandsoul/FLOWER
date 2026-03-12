@@ -73,4 +73,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
 
 # Start with dumb-init for proper signal handling
 # Runs migrations then starts PM2 in cluster mode
-CMD ["dumb-init", "sh", "-c", "npx prisma migrate resolve --rolled-back 20260218223822_add_wallet_payment_tables 2>/dev/null; npx prisma migrate deploy && npx pm2-runtime ecosystem.config.cjs --env production"]
+CMD ["dumb-init", "sh", "-c", "npx prisma migrate resolve --applied 20260218223822_add_wallet_payment_tables 2>/dev/null; npx prisma migrate deploy && npx pm2-runtime ecosystem.config.cjs --env production"]
