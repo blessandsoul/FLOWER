@@ -24,6 +24,11 @@ export const redisClient = {
  * @returns true if connected successfully, false otherwise
  */
 export async function connectRedis(): Promise<boolean> {
+  if (!env.REDIS_ENABLED) {
+    logger.info("Redis is disabled (REDIS_ENABLED=false)");
+    return false;
+  }
+
   if (_redisClient && _redisClient.isOpen) {
     return true;
   }
@@ -47,6 +52,12 @@ export async function connectRedis(): Promise<boolean> {
     logger.info("Redis connected");
     return true;
   } catch (err) {
+    // Clean up the client to prevent reconnection attempts and error event spam
+    if (_redisClient) {
+      _redisClient.removeAllListeners();
+      try { await _redisClient.disconnect(); } catch { /* ignore */ }
+      _redisClient = null;
+    }
     logger.error({ err }, "Failed to connect to Redis");
     return false;
   }

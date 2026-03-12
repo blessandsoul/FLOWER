@@ -42,6 +42,7 @@ const envSchema = z.object({
   COOKIE_SECURE: z.coerce.boolean().optional(),
 
   // Redis
+  REDIS_ENABLED: z.coerce.boolean().default(false),
   REDIS_HOST: z.string().default("localhost"),
   REDIS_PORT: z.coerce.number().int().positive().default(6381),
   REDIS_PASSWORD: z.string().optional(),
